@@ -1,0 +1,9 @@
+[
+  {
+    "enabled": false,
+    "serveWeight": 100,
+    "providerCompleteApiUrl": "",
+    "providerApiSecret": "",
+    "model": ""
+  }
+]

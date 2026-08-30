@@ -1,0 +1,33 @@
+# Dependencies and generated runtime files
+daemon/node_modules/
+daemon/laodeng/node_modules/
+node_modules/
+
+# Local user data, login state and browser profiles
+daemon/state/*
+daemon/log/*
+daemon/config/*
+daemon/**/user-data/
+daemon/**/profiles/
+daemon/**/browser-data/
+*.db
+*.db-*
+*.sqlite
+*.sqlite-*
+*.log
+
+# Local configuration and secrets
+.env
+.env.*
+!.env.example
+**/secrets.*
+**/*secret*
+**/*token*
+**/*cookie*
+
+# OS/editor files
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+

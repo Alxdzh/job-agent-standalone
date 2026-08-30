@@ -1,0 +1,26 @@
+{
+  "name": "求职管家",
+  "short_name": "求职管家",
+  "description": "统一管理求职资料、简历、可见网页投递与执行状态。",
+  "lang": "zh-CN",
+  "dir": "ltr",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#f4f5f7",
+  "theme_color": "#1a56db",
+  "icons": [
+    {
+      "src": "/icons/app-icon.svg",
+      "sizes": "192x192",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icons/app-icon.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

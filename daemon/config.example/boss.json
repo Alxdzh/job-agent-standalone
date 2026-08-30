@@ -1,0 +1,11 @@
+{
+  "enabled": true,
+  "daemonCity": "",
+  "expectSalaryLow": 0,
+  "expectCityList": [],
+  "expectJobNameRegExpStr": "",
+  "expectJobDescRegExpStr": "",
+  "blockCompanyNameRegExpStr": "",
+  "blockJobRiskKeywordsRegExpStr": "",
+  "jobSourceList": [{ "type": "search", "enabled": true, "children": [] }]
+}

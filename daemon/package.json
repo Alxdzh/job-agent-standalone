@@ -1,0 +1,21 @@
+{
+  "name": "job-agent-workbench",
+  "version": "1.0.1",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "node index.mjs",
+    "start:standalone": "node index.mjs",
+    "start:mcp": "node mcp-server.mjs",
+    "check": "node --check index.mjs && node --check mcp-server.mjs && node --check src/browser.mjs && node --check src/boss.mjs && node --check src/delivery-config.mjs && node --check src/profile-engine.mjs && node --check src/worker.mjs && node --check src/web.mjs && node --check src/mcp-server.mjs && node --check src/platforms/index.mjs && node --check src/platforms/boss.mjs && node --check src/platforms/zhilian.mjs && node --check src/platforms/job51.mjs && node --check src/platforms/liepin.mjs && node --check src/platforms/ui-helpers.mjs",
+    "test": "node test/mcp-smoke.mjs && node test/platform-adapter-smoke.mjs && node test/llm-smoke.mjs"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.30.0",
+    "puppeteer": "^24.0.0",
+    "puppeteer-extra": "^3.3.6",
+    "puppeteer-extra-plugin-anonymize-ua": "^2.4.6",
+    "puppeteer-extra-plugin-stealth": "^2.11.2",
+    "zod": "^4.4.3"
+  }
+}
