@@ -45,7 +45,7 @@ function cloudApiReadiness() {
   }
 }
 
-// MCP 工具只承接投递执行、资料与状态证据；讨论、研究和记忆由接入它的成熟 Agent 提供。
+// MCP 工具只承接投递执行、资料与状态证据；讨论、研究和记忆由接入它的 Agent 提供。
 export function createJobMcpServer() {
   const server = new McpServer({ name: 'job-agent-mcp', version: '1.0.0' })
 
