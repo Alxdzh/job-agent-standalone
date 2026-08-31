@@ -1,0 +1,8 @@
+{
+  "name": "job-agent-standalone",
+  "private": true,
+  "scripts": {
+    "setup": "node tools/setup.mjs",
+    "start": "node tools/start.mjs"
+  }
+}

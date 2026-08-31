@@ -1,5 +1,6 @@
 ﻿param(
-  [switch]$RunOnly
+  [switch]$RunOnly,
+  [switch]$InstallOnly
 )
 
 $ErrorActionPreference = 'Stop'
@@ -147,11 +148,22 @@ function Ensure-Shortcut {
   $shortcutPath = Join-Path $desktop 'Job-Agent-Workbench.lnk'
   $shell = New-Object -ComObject WScript.Shell
   $shortcut = $shell.CreateShortcut($shortcutPath)
-  $shortcut.TargetPath = Join-Path $Root 'one-click-start.bat'
+  $shortcut.TargetPath = Join-Path $Root 'start.bat'
   $shortcut.WorkingDirectory = $Root
-  $shortcut.Description = 'Job Agent Workbench'
+  $shortcut.Description = '求职管家工作台'
   $shortcut.Save()
   Say "Desktop shortcut created: $shortcutPath"
+}
+
+function Ensure-RunOnlyEnvironment {
+  Refresh-Environment
+  $node = Find-Node
+  if (!$node) { throw 'Node.js 22.12+ was not found. Run install.bat first.' }
+  $chrome = Find-Chrome
+  if (!$chrome) { throw 'Google Chrome was not found. Install it, then run install.bat first.' }
+  $marker = Join-Path $DaemonDir 'node_modules\puppeteer-extra\package.json'
+  if (!(Test-Path -LiteralPath $marker)) { throw 'Project dependencies were not found. Run install.bat first.' }
+  return @{ Node = $node; Chrome = $chrome }
 }
 
 function Start-Workbench([hashtable]$Runtime) {
@@ -177,13 +189,27 @@ function Start-Workbench([hashtable]$Runtime) {
 
 try {
   Assert-DesktopSession
-  Say 'Checking runtime environment...'
-  $runtime = Ensure-Environment
-  Ensure-Config
-  Ensure-Dependencies $runtime.Node
-  Ensure-Shortcut
-  Start-Workbench $runtime
-  Say 'Done. The background service is running. Chrome stays visible for login and delivery.'
+  if ($RunOnly -and $InstallOnly) { throw 'RunOnly and InstallOnly cannot be used together.' }
+  if ($RunOnly) {
+    Say 'Starting the installed workbench...'
+    $runtime = Ensure-RunOnlyEnvironment
+    Ensure-Config
+    Ensure-Shortcut
+    Start-Workbench $runtime
+    Say 'Done. The background service is running. Chrome stays visible for login and delivery.'
+  } else {
+    Say 'Checking runtime environment...'
+    $runtime = Ensure-Environment
+    Ensure-Config
+    Ensure-Dependencies $runtime.Node
+    Ensure-Shortcut
+    if ($InstallOnly) {
+      Say 'Installation complete. A desktop shortcut was created; use start.bat to start the workbench.'
+    } else {
+      Start-Workbench $runtime
+      Say 'Done. The background service is running. Chrome stays visible for login and delivery.'
+    }
+  }
 } catch {
   Write-Host "`n[Job Agent] Startup failed: $($_.Exception.Message)" -ForegroundColor Red
   Write-Host 'Follow the message above, then run one-click-start.bat again.' -ForegroundColor Yellow

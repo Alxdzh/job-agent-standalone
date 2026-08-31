@@ -4,6 +4,15 @@
 
 它不是聊天机器人，也不包含 QQ、微信、HR 对话或回复草稿功能。需要让其他 Agent 通过自然语言规划并调用投递工具，请使用配套的 [求职管家 MCP 版](https://github.com/Alxdzh/job-agent-mcp)。
 
+## 最简单的用法
+
+- **Windows 安装**：解压后双击 `install.bat`。它会准备运行环境、安装依赖，并在桌面创建 `Job-Agent-Workbench` 快捷方式。
+- **Windows 启动**：双击桌面快捷方式，或双击根目录的 `start.bat`。
+- **安装并立即启动**：仍可直接双击 `one-click-start.bat`。
+- **命令行**：在仓库根目录运行 `npm run setup` 安装，运行 `npm start` 启动。
+
+安装完成后不需要每次再进入 `daemon` 目录。首次运行会检查 Node.js、Chrome 和依赖；后续只需启动快捷方式或 `start.bat`。
+
 ## 这个版本能做什么
 
 - **管理资料和简历**：在工作台保存个人资料、经历、求职方向、城市、薪资和简历版本。
@@ -21,15 +30,22 @@
 ### Windows 10/11：一键启动
 
 1. 下载本仓库 ZIP 并解压到没有权限限制的目录。
-2. 双击根目录的 `one-click-start.bat`。
-3. 启动器会检查 Node.js 22.12+、系统 Google Chrome 和项目依赖；缺少 Node.js 或 Chrome 时会尝试使用 `winget` 安装。
-4. 服务启动后会打开 `http://127.0.0.1:8788/`，并在桌面创建 `Job-Agent-Workbench` 快捷方式。
+2. 双击 `install.bat` 完成安装；也可以双击 `one-click-start.bat` 一次完成安装和启动。
+3. 安装器会检查 Node.js 22.12+、系统 Google Chrome 和项目依赖；缺少 Node.js 或 Chrome 时会尝试使用 `winget` 安装。
+4. 安装完成后会在桌面创建 `Job-Agent-Workbench` 快捷方式；之后双击该快捷方式或 `start.bat` 即可启动。
 
 GitHub 源码仓库不提交 `node_modules`。第一次启动如果本机没有依赖，需要网络执行 npm 安装；启动器会设置 `PUPPETEER_SKIP_DOWNLOAD=1`，使用系统 Chrome，不额外下载 Chromium。没有 `winget` 时，请先手动安装 Node.js 22.12+ 和 Google Chrome，再重新运行启动器。
 
 一键启动只负责启动服务，不会自动开始投递，也不会创建开机自启计划任务。若启动器报错，请按提示修复环境后再次运行；日志在 `daemon/log/daemon.log`。
 
-### Windows 手动启动
+### Windows 命令行安装和启动
+
+```powershell
+npm run setup
+npm start
+```
+
+如果只想直接运行底层入口，也可以使用下面的命令：
 
 在 PowerShell 中执行：
 
@@ -50,10 +66,11 @@ node index.mjs
 cd daemon
 export PUPPETEER_SKIP_DOWNLOAD=1
 npm install
-node index.mjs
+cd ..
+node tools/start.mjs
 ```
 
-启动后打开 `http://127.0.0.1:8788/`。不同系统的 Chrome 安装位置和权限可能不同；如果程序无法找到 Chrome，请检查本机 Chrome 安装或按项目配置指定可执行文件。
+也可以直接运行 `sh install.sh` 安装，运行 `sh start.sh` 启动；安装脚本会在存在 `Desktop` 目录时创建桌面启动文件。启动后打开 `http://127.0.0.1:8788/`。不同系统的 Chrome 安装位置和权限可能不同；如果程序无法找到 Chrome，请检查本机 Chrome 安装或按项目配置指定可执行文件。
 
 ## 第一次使用
 
