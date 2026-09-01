@@ -71,22 +71,22 @@ try {
   assert.equal(updatedRuntimePayload.pacing.batchCountMax, 7)
   const savedMaterials = await client.callTool({
     name: 'job_update_delivery_materials',
-    arguments: { text: '有内容运营和行政协作经验；不接受单休或大小周。' }
+    arguments: { text: '有项目协作经验；工作制要求需在 JD 中明确。' }
   })
   const savedMaterialsPayload = JSON.parse(savedMaterials.content?.[0]?.text || '{}')
   assert.equal(savedMaterialsPayload.ok, true)
   const materials = await client.callTool({ name: 'job_get_delivery_materials', arguments: {} })
   const materialsPayload = JSON.parse(materials.content?.[0]?.text || '{}')
-  assert.equal(materialsPayload.materials.text, '有内容运营和行政协作经验；不接受单休或大小周。')
+  assert.equal(materialsPayload.materials.text, '有项目协作经验；工作制要求需在 JD 中明确。')
   const update = await client.callTool({
     name: 'job_update_delivery_preferences',
-    arguments: { city: '青岛', targetRoles: ['行政专员'], salaryMin: 5 }
+    arguments: { city: '测试城市', targetRoles: ['测试职位'], salaryMin: 1 }
   })
   const updatePayload = JSON.parse(update.content?.[0]?.text || '{}')
   assert.equal(updatePayload.ok, true)
-  assert.equal(updatePayload.config.city, '青岛')
-  assert.deepEqual(updatePayload.config.keywords, ['行政专员'])
-  assert.equal(updatePayload.config.salaryMin, 5)
+  assert.equal(updatePayload.config.city, '测试城市')
+  assert.deepEqual(updatePayload.config.keywords, ['测试职位'])
+  assert.equal(updatePayload.config.salaryMin, 1)
   const rejectedStart = await client.callTool({ name: 'job_start_hunt', arguments: { maxJobs: 1 } })
   const rejectedPayload = JSON.parse(rejectedStart.content?.[0]?.text || '{}')
   assert.equal(rejectedPayload.reason, 'user_cloud_api_required_for_unattended_batch')
