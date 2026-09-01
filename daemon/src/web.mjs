@@ -6,7 +6,6 @@ import { fileURLToPath } from 'node:url'
 import * as store from './store.mjs'
 import { state as workerState, setPaused, triggerHunt, resumeHunt, getWorkerSnapshot, getRuntimeDiagnostics, startContinuousHunt, stopContinuousHunt, toggleContinuousHunt } from './worker.mjs'
 import { readConfig, testLlmConnection, listLlmModels } from './llm.mjs'
-import { getUserProfile, updateUserProfile } from './profile-engine.mjs'
 import { setActivePlatform, showPlatformBrowser, getPlatformBrowserInfo } from './browser.mjs'
 import { readWorkbenchSettings, updateWorkbenchSettings } from './workbench-settings.mjs'
 import { getRuntimeEdition } from './edition.mjs'
@@ -100,10 +99,6 @@ function apiHandler(req, res, url) {
       } catch (err) { return sendJson(res, { ok: false, error: err?.message }, 500) }
     })
     return
-  }
-  if (req.method === 'GET' && url.pathname === '/api/profile') {
-    const ownerId = String(url.searchParams.get('ownerId') || 'default').slice(0, 160)
-    return sendJson(res, { ok: true, profile: getUserProfile(ownerId) })
   }
   if (req.method === 'GET' && url.pathname === '/api/logs') {
     let lines = []
@@ -291,18 +286,6 @@ function apiHandler(req, res, url) {
       if (Object.prototype.hasOwnProperty.call(updates, 'blockJobRiskKeywordsRegExpStr')) patch.jobRiskExclusions = updates.blockJobRiskKeywordsRegExpStr
       const result = updateDeliveryConfig(patch)
       return sendJson(res, result, result.ok ? 200 : 400)
-    })
-    return
-  }
-  if (req.method === 'POST' && url.pathname === '/api/profile') {
-    let body = ''
-    req.on('data', c => (body += c))
-    req.on('end', () => {
-      let p
-      try { p = JSON.parse(body || '{}') } catch (err) { return sendJson(res, { ok: false, error: `bad json: ${err.message}` }, 400) }
-      const ownerId = String(p.ownerId || 'default').slice(0, 160)
-      const result = updateUserProfile({ ownerId, patch: p.patch || {}, confirm: p.confirm === true })
-      return sendJson(res, result, result.ok || result.requiresConfirmation ? 200 : 400)
     })
     return
   }

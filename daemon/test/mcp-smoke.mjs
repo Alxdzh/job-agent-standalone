@@ -44,10 +44,10 @@ try {
   await client.connect(transport)
   const listed = await client.listTools()
   const names = new Set((listed.tools || []).map(tool => tool.name))
-  for (const required of ['job_get_workflow', 'job_get_status', 'job_get_runtime_settings', 'job_update_runtime_settings', 'job_start_hunt', 'job_start_continuous_hunt', 'job_stop_continuous_hunt', 'job_get_delivery_config', 'job_update_delivery_preferences', 'job_list_applications', 'job_get_profile']) {
+  for (const required of ['job_get_workflow', 'job_get_status', 'job_get_runtime_settings', 'job_update_runtime_settings', 'job_start_hunt', 'job_start_continuous_hunt', 'job_stop_continuous_hunt', 'job_get_delivery_config', 'job_update_delivery_preferences', 'job_list_applications']) {
     assert.ok(names.has(required), `missing MCP tool: ${required}`)
   }
-  for (const removed of ['job_read_new_hr_messages', 'job_list_conversations', 'job_list_pending_replies', 'job_get_reply_context', 'job_create_reply_draft', 'job_send_reply', 'job_list_resumes', 'job_save_resume_version', 'job_sync_resume_to_boss']) {
+  for (const removed of ['job_read_new_hr_messages', 'job_list_conversations', 'job_list_pending_replies', 'job_get_reply_context', 'job_create_reply_draft', 'job_send_reply', 'job_list_resumes', 'job_save_resume_version', 'job_sync_resume_to_boss', 'job_get_profile', 'job_update_profile']) {
     assert.ok(!names.has(removed), `removed MCP tool still exposed: ${removed}`)
   }
   const status = await client.callTool({ name: 'job_get_status', arguments: {} })

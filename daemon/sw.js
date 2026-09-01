@@ -1,4 +1,4 @@
-const CACHE_NAME = 'job-agent-shell-v16-profile-records'
+const CACHE_NAME = 'job-agent-shell-v17-delivery-ui'
 const SHELL = [
   '/',
   '/index.html',

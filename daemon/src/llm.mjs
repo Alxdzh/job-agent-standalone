@@ -1,7 +1,6 @@
 import os from 'node:os'
 import path from 'node:path'
 import fs from 'node:fs'
-import * as store from './store.mjs'
 
 const CONFIG_DIR = process.env.JOB_AGENT_CONFIG_DIR || path.join(os.homedir(), '.job-agent', 'config')
 
@@ -224,48 +223,23 @@ export function parseJudgeDecision(raw) {
   return null
 }
 
-function judgeProfile(ownerId = 'default') {
-  try {
-    const p = store.getUserProfile(ownerId) || {}
-    const hasCompactProfile = Object.prototype.hasOwnProperty.call(p, 'jdProfile')
-    const legacyContext = [
-      ['个人概述', p.summary],
-      ['详细经历', p.experience],
-      ['教育背景', p.education],
-      ['技能关键词', p.skills],
-      ['休息与工时偏好', p.restPreference],
-      ['福利偏好', p.benefitsPreference],
-      ['工作方式', p.workMode],
-      ['其他限制', p.constraints]
-    ].filter(([, value]) => Array.isArray(value) ? value.length : String(value || '').trim())
-      .map(([label, value]) => `${label}：${Array.isArray(value) ? value.join('、') : String(value).trim()}`)
-      .join('\n')
-    return {
-      context: (hasCompactProfile ? String(p.jdProfile || '') : legacyContext).trim().slice(0, 4000)
-    }
-  } catch { return { context: '' } }
-}
-
-// 根据用户资料和平台配置判断岗位是否匹配，不把某一位用户的经历写死在共享代码中。
-export async function llmJudgeJob(job, platformConfig, ownerId = 'default') {
+// 仅根据当前投递条件和岗位内容判断，不读取个人资料或简历数据。
+export async function llmJudgeJob(job, platformConfig) {
   const config = platformConfig || readConfig('boss.json') || {}
-  const profile = judgeProfile(ownerId)
   const keywords = (config.expectJobNameRegExpStr || '').split('|').filter(Boolean)
   const roles = keywords.join('、')
   const city = config.daemonCity || (Array.isArray(config.expectCityList) && config.expectCityList[0]) || ''
   const lowSalary = config.expectSalaryLow ?? 5
   const blackCompany = config.blockCompanyNameRegExpStr || '外包|劳务派遣'
   const riskKeywords = config.blockJobRiskKeywordsRegExpStr || '助贷|传销'
-  const prompt = `你是我的求职助手。请仔细阅读下面的完整 JD，判断这个岗位是否值得我投递简历。
+  const prompt = `你是求职投递筛选助手。请仔细阅读下面的完整 JD，判断这个岗位是否符合当前投递条件。
 
-用户提供的 JD 判断资料（仅用于判断岗位是否匹配，不会修改平台搜索条件）：
-${profile.context || '未填写，请降低判断确定性，不要臆测'}
 - 求职方向：${roles || '未填写'}
 - 城市：${city || '未填写'}，期望薪资：${lowSalary || '未填写'}
 - 平台规则：公司黑名单「${blackCompany}」；风险关键词「${riskKeywords}」
 
-请重点分析 JD 内容：这个岗位具体做什么？要求什么能力？是否与我背景匹配？是否值得投？
-特别关注：岗位是否明确满足用户的限制；没有足够用户资料时，不要把不确定内容当成硬性结论。
+请重点分析 JD 内容：这个岗位具体做什么？要求什么能力？是否符合当前城市、方向、薪资和筛选条件？是否值得投？
+不要臆测未提供的个人经历；无法确认的内容请在理由中明确说明。
 
 岗位信息：
 - 职位：${job.jobName || ''}

@@ -80,7 +80,6 @@ function tab(name) {
   document.querySelectorAll('.panel').forEach(p => p.classList.toggle('active', p.id === 'panel-' + name))
   if (name === 'overview') {
     loadStats()
-    loadProfile()
   }
   if (name === 'records') loadApplications()
 }
@@ -250,34 +249,6 @@ async function checkAllPlatformLogins() {
   if (btn) { btn.disabled = false; btn.textContent = '重新检测四个平台登录状态' }
 }
 
-async function loadProfile() {
-  const r = await api('GET', '/api/profile?ownerId=' + encodeURIComponent(currentOwner))
-  const p = r.data?.profile || {}
-  const profileText = String(p.jdProfile || '')
-  $('profile-panel').innerHTML = `
-    <div class="card profile-compact"><div class="section-head"><div><h3>求职资料</h3><div class="settings-note" style="margin-top:3px">把你的经历、技能、求职限制和在意的条件写在这里，供系统判断 JD 是否匹配。</div></div></div>
-      <div class="profile-form" style="margin-top:9px">
-        <label>个人资料与岗位判断补充<textarea id="profile-jd-context" rows="8" placeholder="例如：我有……经历，熟悉……；希望……；不接受……">${escapeHtml(profileText)}</textarea></label>
-        <div class="profile-form-actions"><button class="btn primary" onclick="saveProfileForm()">保存资料</button><span class="time" id="profile-save-status"></span></div>
-        <div class="settings-note">只保存到本机资料库，不修改设置里的城市、关键词、薪资或平台，也不会自动开始投递。</div>
-      </div>
-    </div>`
-}
-window.saveProfileForm = async function() {
-  const status = $('profile-save-status')
-  const value = id => $(id)?.value?.trim() || ''
-  const body = {
-    ownerId: currentOwner,
-    confirm: true,
-    patch: { jdProfile: value('profile-jd-context') }
-  }
-  status.textContent = '保存中…'
-  const r = await api('POST', '/api/profile', body)
-  if (r.data?.ok) {
-    status.textContent = '已保存资料 ✅'
-    await loadProfile()
-  } else status.textContent = `保存失败：${r.data?.error || r.error || '未知错误'}`
-}
 // ===== 状态 & 设置 =====
 async function refreshStatus() {
   if (agentExited) return
@@ -610,7 +581,7 @@ $('records-refresh')?.addEventListener('click', loadApplications)
 async function manualRefresh() {
   await refreshStatus()
   if (currentTab === 'overview') {
-    await Promise.all([loadStats(), loadPlatformSummary(), loadProfile()])
+    await Promise.all([loadStats(), loadPlatformSummary()])
   } else if (currentTab === 'records') {
     await loadApplications()
   }
@@ -624,6 +595,5 @@ window.addEventListener('DOMContentLoaded', () => {
   loadStats(); refreshStatus()
   loadPlatformSummary()
   loadRuntimeSettings(); loadDeliveryConfig()
-  loadProfile()
   setInterval(() => { refreshStatus() }, 5000)
 })

@@ -4,7 +4,6 @@ import * as store from './store.mjs'
 import { getLlmConfig } from './llm.mjs'
 import { readDeliveryConfig, updateDeliveryConfig } from './delivery-config.mjs'
 import { readWorkbenchSettings, updateWorkbenchSettings } from './workbench-settings.mjs'
-import { getUserProfile, updateUserProfile } from './profile-engine.mjs'
 import { PLATFORMS, PLATFORM_NAMES, getAdapter, inspectPlatformLogin, listEnabledPlatforms } from './platforms/index.mjs'
 import {
   setPaused,
@@ -44,7 +43,7 @@ function cloudApiReadiness() {
   }
 }
 
-// MCP 工具只承接投递执行、资料与状态证据；讨论、研究和记忆由接入它的 Agent 提供。
+// MCP 工具只承接投递执行与状态证据；讨论、研究和记忆由接入它的 Agent 提供。
 export function createJobMcpServer() {
   const server = new McpServer({ name: 'job-agent-mcp', version: '1.0.0' })
 
@@ -60,7 +59,7 @@ export function createJobMcpServer() {
         'Before explaining a failed or stalled delivery, call job_get_status and use the returned plan and browser diagnostics.',
         'Use job_update_delivery_preferences as the only source for city, target roles, salary, and platform filters; saved changes persist to the selected platform or platforms.',
         'Delivery scheduling is per-platform: a platform enters its own cooldown after a random batch, and other ready platforms may run during that cooldown. The daily delivery window stops new jobs after its end time.',
-        'The MCP exposes delivery, profile, JD judgment, and status tools; it has no resume, message, or reply tools.',
+        'The MCP exposes delivery, JD judgment, and status tools; it has no resume, profile, message, or reply tools.',
         'If status is blocked by login, captcha, risk, or city mismatch, ask the user to inspect the visible browser. Do not try to bypass it.'
       ],
       unattendedBatchDecision: 'A background batch uses the user-configured cloud model API to judge JD fit. The external Agent remains responsible for discussion, planning and approval.'
@@ -273,27 +272,6 @@ export function createJobMcpServer() {
     { limit: z.number().int().min(1).max(200).optional(), platform: PLATFORM_ENUM.optional() },
     READ_ONLY,
     async ({ limit = 50, platform = 'all' }) => asResult({ applications: store.listApplications({ limit, platform: normalizePlatform(platform) }) })
-  )
-
-
-  server.tool(
-    'job_get_profile',
-    'Read the optional single-text JD judgment profile. Platform city, target roles, salary, and filters are not read from this profile; use job_get_delivery_config for those values.',
-    {},
-    READ_ONLY,
-    async () => asResult({ profile: getUserProfile('default') })
-  )
-
-  server.tool(
-    'job_update_profile',
-    'Persist the optional single-text JD judgment profile. Put experience, skills, work preferences, and constraints in patch.jdProfile; do not put city, target roles, salary, or platform filters here. This is a write operation and requires explicit confirmation.',
-    { patch: z.record(z.string(), z.any()), confirmed: z.boolean() },
-    MUTATING,
-    async ({ patch, confirmed }) => {
-      if (confirmed !== true) return asResult({ ok: false, reason: 'explicit_user_confirmation_required' }, true)
-      const result = updateUserProfile({ ownerId: 'default', patch, confirm: true })
-      return asResult(result, result.ok === false)
-    }
   )
 
   return server
