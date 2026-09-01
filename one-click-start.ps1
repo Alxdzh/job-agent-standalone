@@ -128,9 +128,24 @@ function Ensure-Config {
   }
 }
 
+function Get-DependencyMarkers {
+  return @(
+    (Join-Path $DaemonDir 'node_modules\@modelcontextprotocol\sdk\package.json'),
+    (Join-Path $DaemonDir 'node_modules\puppeteer\package.json'),
+    (Join-Path $DaemonDir 'node_modules\puppeteer-core\package.json'),
+    (Join-Path $DaemonDir 'node_modules\puppeteer-extra\package.json'),
+    (Join-Path $DaemonDir 'node_modules\puppeteer-extra-plugin-anonymize-ua\package.json'),
+    (Join-Path $DaemonDir 'node_modules\puppeteer-extra-plugin-stealth\package.json')
+  )
+}
+
+function Test-Dependencies {
+  $missing = @(Get-DependencyMarkers | Where-Object { -not (Test-Path -LiteralPath $_) })
+  return $missing.Count -eq 0
+}
+
 function Ensure-Dependencies([string]$Node) {
-  $marker = Join-Path $DaemonDir 'node_modules\puppeteer-extra\package.json'
-  if (Test-Path -LiteralPath $marker) { return }
+  if (Test-Dependencies) { return }
   $npm = Get-Command npm.cmd -ErrorAction SilentlyContinue
   if (!$npm) { throw 'npm.cmd was not found. Re-run the launcher or reinstall Node.js.' }
   Say 'Installing project dependencies. System Chrome is used; no extra Chromium download...'
@@ -161,8 +176,7 @@ function Ensure-RunOnlyEnvironment {
   if (!$node) { throw 'Node.js 22.12+ was not found. Run install.bat first.' }
   $chrome = Find-Chrome
   if (!$chrome) { throw 'Google Chrome was not found. Install it, then run install.bat first.' }
-  $marker = Join-Path $DaemonDir 'node_modules\puppeteer-extra\package.json'
-  if (!(Test-Path -LiteralPath $marker)) { throw 'Project dependencies were not found. Run install.bat first.' }
+  if (-not (Test-Dependencies)) { throw 'Project dependencies were not found. Run install.bat first.' }
   return @{ Node = $node; Chrome = $chrome }
 }
 
