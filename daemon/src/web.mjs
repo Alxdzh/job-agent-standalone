@@ -10,6 +10,7 @@ import { setActivePlatform, showPlatformBrowser, getPlatformBrowserInfo } from '
 import { readWorkbenchSettings, updateWorkbenchSettings } from './workbench-settings.mjs'
 import { getRuntimeEdition } from './edition.mjs'
 import { readDeliveryConfig, updateDeliveryConfig } from './delivery-config.mjs'
+import { readDeliveryMaterials, saveDeliveryMaterials } from './delivery-materials.mjs'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 // The source tree keeps web/ at project root; the distributable template
@@ -47,6 +48,22 @@ function apiHandler(req, res, url) {
   if (req.method === 'GET' && url.pathname === '/api/applications') {
     const platform = url.searchParams.get('platform') || undefined
     return sendJson(res, store.listApplications({ limit: 50, platform }))
+  }
+  if (req.method === 'GET' && url.pathname === '/api/delivery-materials') {
+    return sendJson(res, { ok: true, ...readDeliveryMaterials() })
+  }
+  if (req.method === 'POST' && url.pathname === '/api/delivery-materials') {
+    let body = ''
+    req.on('data', c => (body += c))
+    req.on('end', () => {
+      let payload
+      try { payload = JSON.parse(body || '{}') } catch (err) { return sendJson(res, { ok: false, error: `bad json: ${err.message}` }, 400) }
+      if (typeof payload.text !== 'string') return sendJson(res, { ok: false, error: 'text required' }, 400)
+      try { return sendJson(res, { ok: true, ...saveDeliveryMaterials(payload.text) }) } catch (err) {
+        return sendJson(res, { ok: false, error: err?.message || 'delivery_materials_write_failed' }, 500)
+      }
+    })
+    return
   }
   if (req.method === 'GET' && url.pathname === '/api/worker') {
     return sendJson(res, getWorkerSnapshot())

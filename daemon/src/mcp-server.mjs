@@ -3,6 +3,7 @@ import { z } from 'zod'
 import * as store from './store.mjs'
 import { getLlmConfig } from './llm.mjs'
 import { readDeliveryConfig, updateDeliveryConfig } from './delivery-config.mjs'
+import { readDeliveryMaterials, saveDeliveryMaterials, MAX_DELIVERY_MATERIALS_LENGTH } from './delivery-materials.mjs'
 import { readWorkbenchSettings, updateWorkbenchSettings } from './workbench-settings.mjs'
 import { PLATFORMS, PLATFORM_NAMES, getAdapter, inspectPlatformLogin, listEnabledPlatforms } from './platforms/index.mjs'
 import {
@@ -58,6 +59,7 @@ export function createJobMcpServer() {
         'Do not start applying unless the user explicitly asks to start or apply a stated number of jobs.',
         'Before explaining a failed or stalled delivery, call job_get_status and use the returned plan and browser diagnostics.',
         'Use job_update_delivery_preferences as the only source for city, target roles, salary, and platform filters; saved changes persist to the selected platform or platforms.',
+        'Use job_update_delivery_materials when the user wants to save or revise the free-form delivery background used for JD matching; read it with job_get_delivery_materials when needed.',
         'Delivery scheduling is per-platform: a platform enters its own cooldown after a random batch, and other ready platforms may run during that cooldown. The daily delivery window stops new jobs after its end time.',
         'The MCP exposes delivery, JD judgment, and status tools; it has no resume, profile, message, or reply tools.',
         'If status is blocked by login, captcha, risk, or city mismatch, ask the user to inspect the visible browser. Do not try to bypass it.'
@@ -135,6 +137,26 @@ export function createJobMcpServer() {
         deliveryConfigs: Object.fromEntries(PLATFORMS.map(platform => [platform, readDeliveryConfig(platform)])),
         cloudApi: cloudApiReadiness()
       })
+    }
+  )
+
+  server.tool(
+    'job_get_delivery_materials',
+    'Read the user-maintained free-form delivery background used as context when judging JD fit. This never starts delivery or changes the text.',
+    {},
+    READ_ONLY,
+    async () => asResult({ materials: readDeliveryMaterials() })
+  )
+
+  server.tool(
+    'job_update_delivery_materials',
+    'Save or replace the free-form delivery background. Use it for experience, strengths, work preferences, and other information relevant to deciding whether a JD is suitable; it does not create a resume, sync a platform profile, or start delivery.',
+    { text: z.string().max(MAX_DELIVERY_MATERIALS_LENGTH) },
+    MUTATING,
+    async ({ text }) => {
+      try { return asResult({ ok: true, materials: saveDeliveryMaterials(text) }) } catch (err) {
+        return asResult({ ok: false, error: err?.message || String(err) }, true)
+      }
     }
   )
 

@@ -8,7 +8,7 @@
     "start:standalone": "node index.mjs",
     "start:mcp": "node mcp-server.mjs",
     "postinstall": "patch-package",
-    "check": "node --check index.mjs && node --check mcp-server.mjs && node --check src/browser.mjs && node --check src/boss.mjs && node --check src/delivery-config.mjs && node --check src/profile-engine.mjs && node --check src/worker.mjs && node --check src/web.mjs && node --check src/mcp-server.mjs && node --check src/platforms/index.mjs && node --check src/platforms/boss.mjs && node --check src/platforms/zhilian.mjs && node --check src/platforms/job51.mjs && node --check src/platforms/liepin.mjs && node --check src/platforms/ui-helpers.mjs",
+    "check": "node --check index.mjs && node --check mcp-server.mjs && node --check src/browser.mjs && node --check src/boss.mjs && node --check src/delivery-config.mjs && node --check src/delivery-materials.mjs && node --check src/profile-engine.mjs && node --check src/worker.mjs && node --check src/web.mjs && node --check src/mcp-server.mjs && node --check src/platforms/index.mjs && node --check src/platforms/boss.mjs && node --check src/platforms/zhilian.mjs && node --check src/platforms/job51.mjs && node --check src/platforms/liepin.mjs && node --check src/platforms/ui-helpers.mjs",
     "test": "node test/mcp-smoke.mjs && node test/platform-adapter-smoke.mjs && node test/llm-smoke.mjs"
   },
   "dependencies": {

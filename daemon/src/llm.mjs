@@ -1,6 +1,7 @@
 import os from 'node:os'
 import path from 'node:path'
 import fs from 'node:fs'
+import { readDeliveryMaterials } from './delivery-materials.mjs'
 
 const CONFIG_DIR = process.env.JOB_AGENT_CONFIG_DIR || path.join(os.homedir(), '.job-agent', 'config')
 
@@ -223,7 +224,7 @@ export function parseJudgeDecision(raw) {
   return null
 }
 
-// 仅根据当前投递条件和岗位内容判断，不读取个人资料或简历数据。
+// 根据当前投递条件、用户填写的投递资料和岗位内容判断；资料只从本机配置读取。
 export async function llmJudgeJob(job, platformConfig) {
   const config = platformConfig || readConfig('boss.json') || {}
   const keywords = (config.expectJobNameRegExpStr || '').split('|').filter(Boolean)
@@ -232,13 +233,15 @@ export async function llmJudgeJob(job, platformConfig) {
   const lowSalary = config.expectSalaryLow ?? 5
   const blackCompany = config.blockCompanyNameRegExpStr || '外包|劳务派遣'
   const riskKeywords = config.blockJobRiskKeywordsRegExpStr || '助贷|传销'
+  const deliveryMaterials = readDeliveryMaterials().text.slice(0, 6000)
   const prompt = `你是求职投递筛选助手。请仔细阅读下面的完整 JD，判断这个岗位是否符合当前投递条件。
 
 - 求职方向：${roles || '未填写'}
 - 城市：${city || '未填写'}，期望薪资：${lowSalary || '未填写'}
 - 平台规则：公司黑名单「${blackCompany}」；风险关键词「${riskKeywords}」
+- 投递资料（包含个人经历、技能、休息/工时要求及其他不能接受的条件；用于判断匹配度，不会自动发送给招聘平台）：${deliveryMaterials || '未填写'}
 
-请重点分析 JD 内容：这个岗位具体做什么？要求什么能力？是否符合当前城市、方向、薪资和筛选条件？是否值得投？
+请重点分析 JD 内容：这个岗位具体做什么？要求什么能力？结合投递资料判断是否符合当前城市、方向、薪资和筛选条件？是否值得投？
 不要臆测未提供的个人经历；无法确认的内容请在理由中明确说明。
 
 岗位信息：

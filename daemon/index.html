@@ -170,6 +170,12 @@
   .pacing-fields input:focus { border-color:var(--accent); }
   .schedule-group { margin-top:8px; }
   @media (max-width: 560px) { .pacing-grid { grid-template-columns:1fr; } .stats { grid-template-columns:1fr 1fr; } }
+  .profile-compact textarea { min-height:128px; resize:vertical; line-height:1.6; }
+  .profile-form { display:grid; gap:8px; }
+  .profile-form label { display:flex; flex-direction:column; gap:4px; color:var(--text2); font-size:10px; }
+  .profile-form input, .profile-form textarea { width:100%; background:var(--panel); border:1px solid var(--line); border-radius:7px; padding:7px 8px; color:var(--text); font:inherit; font-size:11px; outline:none; }
+  .profile-form input:focus, .profile-form textarea:focus { border-color:var(--accent); }
+  .profile-form textarea { min-height:58px; resize:vertical; line-height:1.5; }
   .profile-form-actions { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
   .delivery-form { display:grid; gap:8px; }
   .delivery-form-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
@@ -253,7 +259,8 @@
             <button class="btn primary" id="btn-hunt">开始本轮</button>
           </div>
           <div class="time">这里按数量执行一轮；右上角“开始持续投递”不设数量限制，会按节奏持续运行。<span id="hunt-status"></span></div>
-        </div>
+          </div>
+        <div id="profile-panel"></div>
         <div class="stats" id="stats-cards">
           <div class="stat-card hl"><div class="num">—</div><div class="label">今日投递</div></div>
           <div class="stat-card"><div class="num">—</div><div class="label">累计投递</div></div>
@@ -305,7 +312,7 @@
         </div>
           <div class="card">
            <h3>投递偏好</h3>
-           <div class="settings-note" style="margin-top:0;margin-bottom:9px">这里是实际投递条件：平台、城市、关键词、薪资和筛选条件按平台保存。</div>
+           <div class="settings-note" style="margin-top:0;margin-bottom:9px">这里是实际投递条件：平台、城市、关键词、薪资和筛选条件按平台保存。个人经历、休息要求和不能接受的条件，请统一填写概览里的求职资料。</div>
            <div class="delivery-form">
              <div class="delivery-form-grid">
               <label>目标平台<select id="delivery-platform"><option value="boss">Boss直聘</option><option value="zhilian">智联招聘</option><option value="job51">51job（前程无忧）</option><option value="liepin">猎聘</option><option value="all">全部平台</option></select></label>
@@ -368,6 +375,6 @@
     </div>
   </div>
 </div>
-<script src="/app.js?v=20260901-delivery-ui2"></script>
+<script src="/app.js?v=20260902-delivery-materials1"></script>
 </body>
 </html>

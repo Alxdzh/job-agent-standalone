@@ -44,8 +44,8 @@ export function readDeliveryConfig(platform = 'boss') {
   }
 }
 
-// 只改平台投递配置，不处理任何密钥、Cookie 或个人资料。个人资料/长期方向
-// 投递条件统一由本模块维护，避免与其他数据混用。
+// 只改平台投递配置，不处理密钥、Cookie 或投递资料文本；投递资料由
+// delivery-materials.mjs 单独维护，避免和平台配置混在一起。
 export function updateDeliveryConfig(updates = {}) {
   const platform = normalizePlatform(updates.platform)
   if (platform === 'all') {

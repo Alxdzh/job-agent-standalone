@@ -46,7 +46,7 @@ function initAppShell() {
   })
 
   if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('/sw.js?v=20260831-profile-records1').catch(() => {})
+    navigator.serviceWorker.register('/sw.js?v=20260902-delivery-materials1').catch(() => {})
   }
 }
 
@@ -80,6 +80,7 @@ function tab(name) {
   document.querySelectorAll('.panel').forEach(p => p.classList.toggle('active', p.id === 'panel-' + name))
   if (name === 'overview') {
     loadStats()
+    loadProfile()
   }
   if (name === 'records') loadApplications()
 }
@@ -98,6 +99,30 @@ async function loadStats() {
   $('industry-stats').innerHTML = industry.length
     ? industry.map(i => `<span class="tag" style="margin:0 6px 6px 0;background:var(--accent-soft);color:var(--accent)">${escapeHtml(i.name)} ×${i.count}</span>`).join('')
     : '<span class="time">暂无</span>'
+}
+
+async function loadProfile() {
+  const r = await api('GET', '/api/delivery-materials')
+  const panel = $('profile-panel')
+  if (!panel) return
+  const profileText = String(r.data?.text || '')
+  panel.innerHTML = `
+    <div class="card profile-compact"><div class="section-head"><div><h3>求职资料</h3><div class="settings-note" style="margin-top:3px">把你的经历、技能、求职限制和在意的条件写在这里，供系统判断 JD 是否匹配。</div></div></div>
+      <div class="profile-form" style="margin-top:9px">
+        <label>个人资料与岗位判断补充<textarea id="profile-jd-context" rows="8" placeholder="例如：我有……经历，熟悉……；希望……；不接受……">${escapeHtml(profileText)}</textarea></label>
+        <div class="profile-form-actions"><button class="btn primary" onclick="saveProfileForm()">保存资料</button><span class="time" id="profile-save-status"></span></div>
+        <div class="settings-note">只保存到本机资料库，不修改设置里的城市、关键词、薪资或平台，也不会自动开始投递。</div>
+      </div>
+    </div>`
+}
+
+window.saveProfileForm = async function() {
+  const status = $('profile-save-status')
+  const text = $('profile-jd-context')?.value?.trim() || ''
+  if (status) status.textContent = '保存中…'
+  const r = await api('POST', '/api/delivery-materials', { text })
+  if (status) status.textContent = r.data?.ok ? '已保存资料 ✅' : `保存失败：${r.data?.error || r.error || '未知错误'}`
+  if (r.data?.ok) await loadProfile()
 }
 
 function renderApplicationRows(rows) {
@@ -325,7 +350,6 @@ async function saveDeliveryConfig() {
   const keywords = rawKeywords.split(/[\n,，、；;]/).map(x => x.trim()).filter(Boolean)
   const body = {
     platform: $('delivery-platform')?.value || 'boss',
-    enabled: true,
     daemonCity: $('delivery-city')?.value.trim() || '',
     expectSalaryLow: Number($('delivery-salary')?.value) || 0,
     keywords
@@ -581,7 +605,7 @@ $('records-refresh')?.addEventListener('click', loadApplications)
 async function manualRefresh() {
   await refreshStatus()
   if (currentTab === 'overview') {
-    await Promise.all([loadStats(), loadPlatformSummary()])
+    await Promise.all([loadStats(), loadPlatformSummary(), loadProfile()])
   } else if (currentTab === 'records') {
     await loadApplications()
   }
@@ -594,6 +618,6 @@ window.addEventListener('DOMContentLoaded', () => {
   applySkin(localStorage.getItem('skin') || 'light')
   loadStats(); refreshStatus()
   loadPlatformSummary()
-  loadRuntimeSettings(); loadDeliveryConfig()
+  loadRuntimeSettings(); loadDeliveryConfig(); loadProfile()
   setInterval(() => { refreshStatus() }, 5000)
 })
