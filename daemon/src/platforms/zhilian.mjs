@@ -68,6 +68,13 @@ const CITY_DIALOG_SELECTORS = [
 ]
 const CITY_OPTION_SELECTORS = ['a', 'button', 'li', 'span', '[role="option"]', '[role="button"]']
 const CITY_TAB_SELECTORS = ['[role="tab"]', '[class*="city"] li', '[class*="letter"] li']
+const DELIVERY_SUCCESS_DIALOG_SELECTORS = [
+  '[role="dialog"]',
+  '[class*="dialog"]',
+  '[class*="modal"]',
+  '[class*="popup"]'
+]
+const DELIVERY_SUCCESS_BUTTON_SELECTORS = ['button', 'a', '[role="button"]', '.btn', '[class*="btn"]']
 
 function normalizeCityText(value) {
   return String(value || '')
@@ -285,6 +292,42 @@ function cardJobFromDom(card, index) {
   }
 }
 
+// 智联投递成功后会弹出“留在此页 / 继续沟通”。弹窗本身就是成功证据，
+// 但后续流程必须停留在职位页，所以这里只寻找并点击“留在此页”，
+// 永远不把“继续沟通”当成可操作入口。
+async function clickStayOnCurrentPage(page, { timeoutMs = 5000 } = {}) {
+  const deadline = Date.now() + timeoutMs
+  let detected = false
+  let attempts = 0
+  while (Date.now() < deadline) {
+    attempts += 1
+    let dialog = await findVisibleHandle(page, DELIVERY_SUCCESS_DIALOG_SELECTORS)
+    let stayButton = dialog
+      ? await findVisibleTextHandle(dialog, '留在此页', DELIVERY_SUCCESS_BUTTON_SELECTORS, { contains: true })
+      : null
+    if (!stayButton) {
+      stayButton = await findVisibleTextHandle(page, '留在此页', DELIVERY_SUCCESS_BUTTON_SELECTORS, { contains: true })
+    }
+    if (stayButton) {
+      detected = true
+      const buttonText = await readHandleText(stayButton, 120)
+      const clicked = await clickElementHandle(stayButton, { delay: 40 + Math.floor(Math.random() * 50) })
+      await disposeHandle(dialog)
+      if (clicked) {
+        await sleep(900)
+        const stillVisible = await findVisibleTextHandle(page, '留在此页', DELIVERY_SUCCESS_BUTTON_SELECTORS, { contains: true })
+        const dismissed = !stillVisible
+        await disposeHandle(stillVisible)
+        return { detected: true, clicked: true, dismissed, buttonText, attempts }
+      }
+    } else {
+      await disposeHandle(dialog)
+    }
+    await sleep(220)
+  }
+  return { detected, clicked: false, dismissed: false, attempts }
+}
+
 function successEvidenceFromPage(page) {
   return page.evaluate(() => {
     const visible = node => {
@@ -308,6 +351,22 @@ function successEvidenceFromPage(page) {
     const risk = /安全验证|请完成验证|滑动验证|验证码|访问受限|操作频繁|账号异常/.test(evidenceText)
     return { success, failed, risk, detailButton, evidenceText }
   }).catch(() => ({ success: false, failed: false, risk: false, evidenceText: '' }))
+}
+
+async function evidenceAfterDelivery(page) {
+  const popup = await clickStayOnCurrentPage(page)
+  const evidence = await successEvidenceFromPage(page)
+  if (!popup.detected) return evidence
+  const popupEvidence = `智联招聘投递成功弹窗：${popup.buttonText || '留在此页'}`
+  return {
+    ...evidence,
+    success: true,
+    deliveryPopup: true,
+    stayOnPageClicked: popup.clicked,
+    popupDismissed: popup.dismissed,
+    popupButtonText: popup.buttonText || '留在此页',
+    evidenceText: [popupEvidence, evidence.evidenceText].filter(Boolean).join('\n').slice(-1200)
+  }
 }
 
 const adapter = {
@@ -493,7 +552,7 @@ const adapter = {
     await sleep(1800)
     const attachmentReady = await waitForAny(page, ['.a-attachment-select', '[class*="attachment-select"]'], 7000)
     if (!attachmentReady) {
-      const evidence = await successEvidenceFromPage(page)
+      const evidence = await evidenceAfterDelivery(page)
       if (evidence.risk) return { ok: false, success: false, code: 'risk_detected', reason: '智联招聘出现验证页面', risk: { kind: 'platform_verification', url: page.url() }, evidence }
       if (evidence.success) return { ok: true, success: true, clicked: true, evidence }
       return { ok: true, success: false, indeterminate: true, code: 'delivery_indeterminate', reason: '点击投递后没有出现简历确认面板或成功证据', evidence }
@@ -513,7 +572,7 @@ const adapter = {
     await disposeHandle(panel)
     if (!delivered.ok) return { ok: true, success: false, indeterminate: true, code: 'delivery_indeterminate', reason: '简历确认按钮真实点击失败，未重复点击' }
     await sleep(3500)
-    const evidence = await successEvidenceFromPage(page)
+    const evidence = await evidenceAfterDelivery(page)
     if (evidence.risk) return { ok: false, success: false, code: 'risk_detected', reason: '智联招聘投递后出现验证页面', risk: { kind: 'platform_verification', url: page.url() }, evidence }
     if (evidence.failed) return { ok: true, success: false, code: 'apply_failed', reason: '智联招聘明确返回投递失败', evidence }
     if (evidence.success) return { ok: true, success: true, clicked: true, evidence }
