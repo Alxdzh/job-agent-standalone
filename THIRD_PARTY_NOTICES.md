@@ -15,3 +15,13 @@ repository public or distributing binaries that include the component.
 Other runtime dependencies are declared in `daemon/package.json` and locked in
 `daemon/package-lock.json`; they are not vendored here, and their original
 licenses and notices remain applicable.
+
+## puppeteer-extra-plugin-anonymize-ua
+
+- Upstream version: 2.4.6
+- Attribution: berstend/puppeteer-extra
+- License: MIT
+- Local compatibility patch: daemon/patches/puppeteer-extra-plugin-anonymize-ua+2.4.6.patch
+
+The patch keeps the upstream UA transformation behavior and adds the
+onBrowser/shared-handler compatibility used by the original deployment.

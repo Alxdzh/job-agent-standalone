@@ -135,13 +135,22 @@ function Get-DependencyMarkers {
     (Join-Path $DaemonDir 'node_modules\puppeteer-core\package.json'),
     (Join-Path $DaemonDir 'node_modules\puppeteer-extra\package.json'),
     (Join-Path $DaemonDir 'node_modules\puppeteer-extra-plugin-anonymize-ua\package.json'),
-    (Join-Path $DaemonDir 'node_modules\puppeteer-extra-plugin-stealth\package.json')
+    (Join-Path $DaemonDir 'node_modules\puppeteer-extra-plugin-stealth\package.json'),
+    (Join-Path $DaemonDir 'node_modules\patch-package\package.json')
   )
 }
 
 function Test-Dependencies {
   $missing = @(Get-DependencyMarkers | Where-Object { -not (Test-Path -LiteralPath $_) })
-  return $missing.Count -eq 0
+  if ($missing.Count -gt 0) { return $false }
+  $anonymizeUaSource = Join-Path $DaemonDir 'node_modules\puppeteer-extra-plugin-anonymize-ua\index.js'
+  if (-not (Test-Path -LiteralPath $anonymizeUaSource)) { return $false }
+  try {
+    $source = Get-Content -Raw -LiteralPath $anonymizeUaSource
+    return $source.Contains('async onBrowser(browser)') -and $source.Contains('async handler (page)')
+  } catch {
+    return $false
+  }
 }
 
 function Ensure-Dependencies([string]$Node) {
