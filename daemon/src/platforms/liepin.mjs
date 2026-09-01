@@ -96,6 +96,14 @@ const LIEPIN_VIP_CLOSE_SELECTORS = [
   '[class*="close"]'
 ]
 const LIEPIN_VIP_TEXT = /VIP|会员|金卡|开通|购买|权益|猎聘卡|超级会员/i
+const LIEPIN_DETAIL_SURFACE_SELECTORS = [
+  '[class*="job-detail"]',
+  '[class*="job-info"]',
+  '[class*="job-content"]',
+  'h1'
+]
+const LIEPIN_APPLY_ACTION_SELECTORS = ['button', 'a', '[role="button"]', '.btn', '[class*="btn"]']
+const LIEPIN_DIRECT_APPLY_TEXTS = ['投简历', '投递简历', '立即投递']
 
 async function visibleCityDialog(page) {
   return findVisibleHandle(page, CITY_DIALOG_SELECTORS)
@@ -182,6 +190,88 @@ async function dismissLiepinPopups(page) {
   return result
 }
 
+function pageUrl(page) {
+  try { return page?.url?.() || '' } catch { return '' }
+}
+
+function isLiepinDetailUrl(page) {
+  try {
+    const parsed = new URL(pageUrl(page))
+    return parsed.hostname.endsWith('liepin.com') && /\/job(?:\/|$)/.test(parsed.pathname)
+  } catch {
+    return false
+  }
+}
+
+async function findLiepinAction(page, labels) {
+  for (const label of labels) {
+    const handle = await findVisibleTextHandle(page, label, LIEPIN_APPLY_ACTION_SELECTORS, { contains: true })
+    if (handle) return handle
+  }
+  return null
+}
+
+async function hasVisibleLiepinDetailSurface(page) {
+  if (!page || page.isClosed?.()) return false
+  const surface = await findVisibleHandle(page, LIEPIN_DETAIL_SURFACE_SELECTORS)
+  const surfaceText = surface ? await readHandleText(surface, 500) : ''
+  await disposeHandle(surface)
+  if (surfaceText) return true
+  const direct = await findLiepinAction(page, LIEPIN_DIRECT_APPLY_TEXTS)
+  if (direct) {
+    await disposeHandle(direct)
+    return true
+  }
+  const resumePrompt = await findLiepinAction(page, ['聊一聊'])
+  if (resumePrompt) {
+    await disposeHandle(resumePrompt)
+    return true
+  }
+  return false
+}
+
+// 点击职位链接后，猎聘可能新开标签，也可能复用当前标签；不能按“任意已有
+// /job/ URL”选择页面，否则会读取旧详情页，造成“页面明明有投简历却说没有入口”。
+// 只接受点击后新出现、URL 发生变化，或当前标签明确变成详情面的页面。
+async function waitForLiepinDetailPage(base, beforeUrls, { timeoutMs = 15000 } = {}) {
+  const deadline = Date.now() + timeoutMs
+  while (Date.now() < deadline) {
+    const pages = await base.browser().pages().catch(() => [])
+    const changedPages = pages.filter(page => {
+      if (!page || page.isClosed?.() || page === base) return false
+      const previousUrl = beforeUrls.get(page)
+      return previousUrl === undefined || pageUrl(page) !== previousUrl
+    })
+    const detailByUrl = changedPages.find(isLiepinDetailUrl)
+    if (detailByUrl) {
+      await detailByUrl.bringToFront().catch(() => {})
+      return { page: detailByUrl, openedNewTab: true, via: 'new-or-changed-detail-url' }
+    }
+    for (const candidate of changedPages) {
+      if (await hasVisibleLiepinDetailSurface(candidate)) {
+        await candidate.bringToFront().catch(() => {})
+        return { page: candidate, openedNewTab: true, via: 'new-or-changed-detail-surface' }
+      }
+    }
+    const baseChanged = beforeUrls.get(base) !== pageUrl(base)
+    if (baseChanged && (isLiepinDetailUrl(base) || await hasVisibleLiepinDetailSurface(base))) {
+      await base.bringToFront().catch(() => {})
+      return { page: base, openedNewTab: false, via: 'same-tab-detail' }
+    }
+    await sleep(250)
+  }
+  return null
+}
+
+async function waitForLiepinDetailReady(page, { timeoutMs = 10000 } = {}) {
+  const deadline = Date.now() + timeoutMs
+  while (Date.now() < deadline) {
+    if (await hasVisibleLiepinDetailSurface(page)) return true
+    await sleep(250)
+  }
+  return false
+}
+
 async function openSearchSurface(page) {
   if ((await page.url()).includes('/zhaopin')) {
     await dismissLiepinPopups(page)
@@ -208,7 +298,7 @@ function cardJobFromDom(card, index, cityName = '') {
   const linkText = textOf(link, 500)
   const titleMatch = linkText.match(/([^【]+)【\s*([^】]+)\s*】/)
   const area = titleMatch?.[2] || firstText(card, ['[class*="area"]', '[class*="city"]'])
-  const buttons = [...(card?.querySelectorAll?.('button, a, [role="button"]') || [])].map(node => textOf(node, 100)).filter(Boolean)
+  const buttons = [...(card?.querySelectorAll?.('button, a, [role="button"], .btn, [class*="btn"]') || [])].map(node => textOf(node, 100)).filter(Boolean)
   const applied = buttons.some(value => /已投递|已申请|已投/.test(value))
   return {
     index,
@@ -219,7 +309,7 @@ function cardJobFromDom(card, index, cityName = '') {
     cityName: cleanText(String(area || '').split(/[-·|\s]/)[0], 80),
     targetCity: cityName,
     postDescription: textOf(card, 2600),
-    hasApply: buttons.some(value => /投简历|聊一聊|投递/.test(value)) && !applied,
+    hasApply: buttons.some(value => /投简历|投递简历|立即投递|聊一聊/.test(value)) && !applied,
     alreadyApplied: applied,
     jobUrl: link?.href || ''
   }
@@ -455,7 +545,7 @@ const adapter = {
         const linkText = clean(link?.innerText || '')
         const titleMatch = linkText.match(/([^【]+)【\s*([^】]+)\s*】/)
         const full = clean(card.innerText)
-        const buttons = [...card.querySelectorAll('button, a, [role="button"]')].map(node => clean(node.innerText)).filter(Boolean)
+        const buttons = [...card.querySelectorAll('button, a, [role="button"], .btn, [class*="btn"]')].map(node => clean(node.innerText)).filter(Boolean)
         const applied = buttons.some(value => /已投递|已申请|已投/.test(value))
         const city = clean(titleMatch?.[2] || card.querySelector('[class*="area"], [class*="city"]')?.innerText || '').split(/[-·|\s]/)[0]
         return {
@@ -466,7 +556,7 @@ const adapter = {
           brandName: clean(card.querySelector('[class*="company-name"], [class*="comp-name"], [class*="company"]')?.innerText || '').split('\n')[0],
           cityName: city,
           postDescription: full.slice(0, 2600),
-          hasApply: buttons.some(value => /投简历|聊一聊|投递/.test(value)) && !applied,
+          hasApply: buttons.some(value => /投简历|投递简历|立即投递|聊一聊/.test(value)) && !applied,
           alreadyApplied: applied,
           jobUrl: link?.href || ''
         }
@@ -482,6 +572,7 @@ const adapter = {
     const listEntry = list[index]
     if (!listEntry) return { ok: false, code: 'job_not_found', reason: `没有找到第 ${index} 个猎聘岗位` }
     const beforePages = await base.browser().pages()
+    const beforeUrls = new Map(beforePages.map(page => [page, pageUrl(page)]))
     let link = await findIndexedVisibleHandle(base, ['a[data-nick="job-detail-job-info"]'], listEntry.index ?? index)
     if (!link) link = await findIndexedVisibleHandle(base, ['a[href*="/job/"]'], listEntry.index ?? index)
     if (!link && listEntry.jobUrl) {
@@ -490,16 +581,12 @@ const adapter = {
     if (!link) return { ok: false, code: 'detail_link_not_found', reason: `没有找到第 ${index} 个猎聘详情入口` }
     const clicked = await clickElementHandle(link, { delay: 45 + Math.floor(Math.random() * 45) })
     if (!clicked) return { ok: false, code: 'detail_click_failed', reason: '猎聘详情入口真实点击失败' }
-    await sleep(5000)
-    const pages = await base.browser().pages()
-    const detailPage = pages.find(page => !page.isClosed() && page.url().includes('/job/') && page !== base)
-      || pages.find(page => !page.isClosed() && page.url().includes('/job/'))
-      || pages.find(page => !beforePages.includes(page) && page !== base)
+    const detailResult = await waitForLiepinDetailPage(base, beforeUrls)
+    const detailPage = detailResult?.page
     if (!detailPage) return { ok: false, code: 'detail_page_not_opened', reason: '猎聘详情页没有打开' }
-    await detailPage.bringToFront().catch(() => {})
     this._detailPage = detailPage
     await dismissLiepinPopups(detailPage)
-    await waitForAny(detailPage, ['h1', '[class*="job-detail"]', '[class*="job-info"]', 'button'], 10000)
+    await waitForLiepinDetailReady(detailPage)
     await sleep(1800)
     const detail = await detailPage.evaluate(listJobName => {
       const clean = value => String(value || '').replace(/\u00a0/g, ' ').replace(/[ \t]+/g, ' ').trim()
@@ -512,7 +599,7 @@ const adapter = {
         }
         return ''
       }
-      const buttons = [...document.querySelectorAll('button, a, [role="button"]')]
+      const buttons = [...document.querySelectorAll('button, a, [role="button"], .btn, [class*="btn"]')]
         .filter(node => { const r = node.getBoundingClientRect?.(); return r && r.width > 0 && r.height > 0 })
         .map(node => clean(node.innerText)).filter(Boolean)
       const applied = buttons.some(value => /已投递|已申请|已投/.test(value))
@@ -522,13 +609,26 @@ const adapter = {
         brandName: first(['[class*="company-name"]', '[class*="comp-name"]', '[class*="company-info"] a', '[class*="job-company"]']),
         cityName: (body.match(/北京|上海|深圳|广州|杭州|南京|成都|重庆|武汉|西安|青岛|济南|烟台|威海|潍坊|临沂/) || [''])[0],
         postDescription: body.slice(0, 3400),
-        hasDirectApply: buttons.some(value => /投简历/.test(value)) && !applied,
+        hasDirectApply: buttons.some(value => /投简历|投递简历|立即投递/.test(value)) && !applied,
         hasResumePrompt: buttons.some(value => /聊一聊/.test(value)) && !applied,
-        hasApply: buttons.some(value => /投简历|聊一聊/.test(value)) && !applied,
+        hasApply: buttons.some(value => /投简历|投递简历|立即投递|聊一聊/.test(value)) && !applied,
+        visibleActionTexts: buttons.filter(value => /投简历|投递简历|立即投递|聊一聊|已投递|已申请|已投/.test(value)).slice(0, 12),
         alreadyApplied: applied
       }
     }, listEntry.jobName).catch(err => ({ jobName: listEntry.jobName, postDescription: '', detailError: err?.message }))
-    const job = { ...listEntry, ...detail, jobId: detail.jobId || listEntry.jobId, index }
+    const directAction = await findLiepinAction(detailPage, LIEPIN_DIRECT_APPLY_TEXTS)
+    const resumePrompt = await findLiepinAction(detailPage, ['聊一聊'])
+    const job = {
+      ...listEntry,
+      ...detail,
+      hasDirectApply: detail.hasDirectApply === true || !!directAction,
+      hasResumePrompt: detail.hasResumePrompt === true || !!resumePrompt,
+      hasApply: detail.hasApply === true || !!directAction || !!resumePrompt,
+      jobId: detail.jobId || listEntry.jobId,
+      index
+    }
+    await disposeHandle(directAction)
+    await disposeHandle(resumePrompt)
     return { ok: true, listEntry: job, job, detail }
   },
 
@@ -540,18 +640,18 @@ const adapter = {
     const risk = riskFromSnapshot(before)
     if (risk) return { ok: false, success: false, code: risk.kind === 'login_required' ? 'login_required' : 'risk_detected', reason: risk.signal, risk }
     const strategy = this._config?.liepinApplyStrategy || 'auto'
-    const buttonTexts = await readVisibleHandleTexts(page, ['button', 'a', '[role="button"]'])
+    const buttonTexts = await readVisibleHandleTexts(page, LIEPIN_APPLY_ACTION_SELECTORS)
     if (buttonTexts.some(value => /已投递|已申请|已投/.test(value))) {
       return { ok: true, success: false, alreadyApplied: true, code: 'already_applied', reason: '岗位已经显示为已投递' }
     }
-    let direct = await findVisibleTextHandle(page, '投简历', ['button', 'a', '[role="button"]'], { contains: true })
+    let direct = await findLiepinAction(page, LIEPIN_DIRECT_APPLY_TEXTS)
     let clicked = null
     if (direct) {
       clicked = { ok: await clickElementHandle(direct, { delay: 45 + Math.floor(Math.random() * 45) }), path: 'direct' }
     } else if (strategy === 'direct') {
       return { ok: true, success: false, code: 'direct_apply_unavailable', reason: '详情页没有直接投简历按钮' }
     } else {
-      const resumeEntry = await findVisibleTextHandle(page, '聊一聊', ['button', 'a', '[role="button"]'], { contains: true })
+      const resumeEntry = await findLiepinAction(page, ['聊一聊'])
       if (!resumeEntry) return { ok: true, success: false, code: 'apply_button_not_found', reason: '详情页没有可用投递入口' }
       clicked = { ok: await clickElementHandle(resumeEntry, { delay: 45 + Math.floor(Math.random() * 45) }), path: 'resume-prompt' }
     }
@@ -560,7 +660,7 @@ const adapter = {
       await sleep(3500)
     } else {
       await sleep(2600)
-      const resumeButton = await findVisibleTextHandle(page, '发简历', ['button', 'a', 'span', '[role="button"]', '[class*="action-resume"]'], { contains: true })
+      const resumeButton = await findVisibleTextHandle(page, '发简历', ['button', 'a', 'span', '[role="button"]', '.btn', '[class*="btn"]', '[class*="action-resume"]'], { contains: true })
       if (!resumeButton) return { ok: true, success: false, indeterminate: true, code: 'delivery_indeterminate', reason: '猎聘投递面板没有明确的发简历按钮，未重复点击' }
       if (!await clickElementHandle(resumeButton, { delay: 45 + Math.floor(Math.random() * 45) })) {
         return { ok: true, success: false, indeterminate: true, code: 'delivery_indeterminate', reason: '猎聘发简历按钮真实点击失败，未重复点击' }
