@@ -1,7 +1,7 @@
 {
   "name": "求职管家",
   "short_name": "求职管家",
-  "description": "统一管理求职资料、简历、可见网页投递与执行状态。",
+  "description": "管理投递资料、可见网页投递与执行状态。",
   "lang": "zh-CN",
   "dir": "ltr",
   "start_url": "/",

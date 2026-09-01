@@ -227,18 +227,23 @@ export function parseJudgeDecision(raw) {
 function judgeProfile(ownerId = 'default') {
   try {
     const p = store.getUserProfile(ownerId) || {}
-    // “今天/这次/本轮”写入 activeTargetRoles；岗位判断必须优先使用本轮方向，
-    // 否则搜索词虽已切换，LLM 仍会拿长期默认方向把岗位全部判掉。
-    const activeRoles = Array.isArray(p.activeTargetRoles) && p.activeTargetRoles.length
-      ? p.activeTargetRoles
-      : p.targetRoles
+    const hasCompactProfile = Object.prototype.hasOwnProperty.call(p, 'jdProfile')
+    const legacyContext = [
+      ['个人概述', p.summary],
+      ['详细经历', p.experience],
+      ['教育背景', p.education],
+      ['技能关键词', p.skills],
+      ['休息与工时偏好', p.restPreference],
+      ['福利偏好', p.benefitsPreference],
+      ['工作方式', p.workMode],
+      ['其他限制', p.constraints]
+    ].filter(([, value]) => Array.isArray(value) ? value.length : String(value || '').trim())
+      .map(([label, value]) => `${label}：${Array.isArray(value) ? value.join('、') : String(value).trim()}`)
+      .join('\n')
     return {
-      background: [p.education, p.experience, p.skills, p.summary].flat().filter(Boolean).join('；').slice(0, 1800),
-      roles: Array.isArray(activeRoles) ? activeRoles.join('、') : String(activeRoles || ''),
-      cities: Array.isArray(p.cities) ? p.cities.join('、') : String(p.city || ''),
-      salary: p.salaryMin ?? '', constraints: [p.restPreference, p.benefitsPreference, p.constraints].filter(Boolean).join('；')
+      context: (hasCompactProfile ? String(p.jdProfile || '') : legacyContext).trim().slice(0, 4000)
     }
-  } catch { return { background: '', roles: '', cities: '', salary: '', constraints: '' } }
+  } catch { return { context: '' } }
 }
 
 // 根据用户资料和平台配置判断岗位是否匹配，不把某一位用户的经历写死在共享代码中。
@@ -246,17 +251,17 @@ export async function llmJudgeJob(job, platformConfig, ownerId = 'default') {
   const config = platformConfig || readConfig('boss.json') || {}
   const profile = judgeProfile(ownerId)
   const keywords = (config.expectJobNameRegExpStr || '').split('|').filter(Boolean)
-  const city = profile.cities || (Array.isArray(config.expectCityList) && config.expectCityList[0]) || ''
+  const roles = keywords.join('、')
+  const city = config.daemonCity || (Array.isArray(config.expectCityList) && config.expectCityList[0]) || ''
   const lowSalary = config.expectSalaryLow ?? 5
   const blackCompany = config.blockCompanyNameRegExpStr || '外包|劳务派遣'
   const riskKeywords = config.blockJobRiskKeywordsRegExpStr || '助贷|传销'
   const prompt = `你是我的求职助手。请仔细阅读下面的完整 JD，判断这个岗位是否值得我投递简历。
 
-用户资料：
-- 背景：${profile.background || '未填写，请降低判断确定性，不要臆测'}
-- 求职方向：${profile.roles || keywords.join('、') || '未填写'}
-- 城市：${city || '未填写'}，期望薪资：${profile.salary || lowSalary || '未填写'}
-- 休息/福利/其他限制：${profile.constraints || '未填写'}
+用户提供的 JD 判断资料（仅用于判断岗位是否匹配，不会修改平台搜索条件）：
+${profile.context || '未填写，请降低判断确定性，不要臆测'}
+- 求职方向：${roles || '未填写'}
+- 城市：${city || '未填写'}，期望薪资：${lowSalary || '未填写'}
 - 平台规则：公司黑名单「${blackCompany}」；风险关键词「${riskKeywords}」
 
 请重点分析 JD 内容：这个岗位具体做什么？要求什么能力？是否与我背景匹配？是否值得投？

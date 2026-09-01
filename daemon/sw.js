@@ -1,4 +1,4 @@
-const CACHE_NAME = 'job-agent-shell-v15-remove-default-limit'
+const CACHE_NAME = 'job-agent-shell-v16-profile-records'
 const SHELL = [
   '/',
   '/index.html',

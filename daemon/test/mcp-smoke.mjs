@@ -44,10 +44,10 @@ try {
   await client.connect(transport)
   const listed = await client.listTools()
   const names = new Set((listed.tools || []).map(tool => tool.name))
-  for (const required of ['job_get_workflow', 'job_get_status', 'job_get_runtime_settings', 'job_update_runtime_settings', 'job_start_hunt', 'job_start_continuous_hunt', 'job_stop_continuous_hunt', 'job_get_delivery_config', 'job_update_delivery_preferences', 'job_list_applications', 'job_get_profile', 'job_list_resumes']) {
+  for (const required of ['job_get_workflow', 'job_get_status', 'job_get_runtime_settings', 'job_update_runtime_settings', 'job_start_hunt', 'job_start_continuous_hunt', 'job_stop_continuous_hunt', 'job_get_delivery_config', 'job_update_delivery_preferences', 'job_list_applications', 'job_get_profile']) {
     assert.ok(names.has(required), `missing MCP tool: ${required}`)
   }
-  for (const removed of ['job_read_new_hr_messages', 'job_list_conversations', 'job_list_pending_replies', 'job_get_reply_context', 'job_create_reply_draft', 'job_send_reply']) {
+  for (const removed of ['job_read_new_hr_messages', 'job_list_conversations', 'job_list_pending_replies', 'job_get_reply_context', 'job_create_reply_draft', 'job_send_reply', 'job_list_resumes', 'job_save_resume_version', 'job_sync_resume_to_boss']) {
     assert.ok(!names.has(removed), `removed MCP tool still exposed: ${removed}`)
   }
   const status = await client.callTool({ name: 'job_get_status', arguments: {} })
@@ -71,12 +71,13 @@ try {
   assert.equal(updatedRuntimePayload.pacing.batchCountMax, 7)
   const update = await client.callTool({
     name: 'job_update_delivery_preferences',
-    arguments: { city: '青岛', targetRoles: ['行政专员'], salaryMin: 5, scope: 'long_term' }
+    arguments: { city: '青岛', targetRoles: ['行政专员'], salaryMin: 5 }
   })
   const updatePayload = JSON.parse(update.content?.[0]?.text || '{}')
   assert.equal(updatePayload.ok, true)
-  assert.equal(updatePayload.profile.city, '青岛')
-  assert.deepEqual(updatePayload.profile.targetRoles, ['行政专员'])
+  assert.equal(updatePayload.config.city, '青岛')
+  assert.deepEqual(updatePayload.config.keywords, ['行政专员'])
+  assert.equal(updatePayload.config.salaryMin, 5)
   const rejectedStart = await client.callTool({ name: 'job_start_hunt', arguments: { maxJobs: 1 } })
   const rejectedPayload = JSON.parse(rejectedStart.content?.[0]?.text || '{}')
   assert.equal(rejectedPayload.reason, 'user_cloud_api_required_for_unattended_batch')

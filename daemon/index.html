@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>求职管家</title>
 <meta name="theme-color" content="#1a56db">
-<meta name="description" content="求职管家：统一管理求职资料、简历、可见网页投递与执行状态。">
+<meta name="description" content="求职管家：管理投递资料、可见网页投递与执行状态。">
 <link rel="manifest" href="/manifest.json">
 <link rel="apple-touch-icon" href="/icons/app-icon.svg">
 <link rel="stylesheet" href="/tabler-icons.css">
@@ -88,7 +88,7 @@
   .panel { display: none; }
   .panel.active { display: block; }
 
-  .stats { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 12px; }
+  .stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin-bottom: 12px; }
   .stat-card { background: var(--panel2); border: 1px solid var(--line); border-radius: 9px; padding: 10px 12px; }
   .stat-card .num { font-size: 22px; font-weight: 700; font-family: var(--mono); color: var(--text); }
   .stat-card.hl .num { color: var(--accent); }
@@ -169,20 +169,10 @@
   .pacing-fields input { width:100%; background:var(--panel); border:1px solid var(--line); border-radius:6px; padding:6px 7px; color:var(--text); font-size:11px; outline:none; }
   .pacing-fields input:focus { border-color:var(--accent); }
   .schedule-group { margin-top:8px; }
-  @media (max-width: 560px) { .pacing-grid { grid-template-columns:1fr; } }
-  .profile-hero { display:flex; gap:10px; align-items:flex-start; padding:13px; background:var(--accent-soft); border:1px solid var(--accent-line); border-radius:10px; margin-bottom:8px; }
-  .profile-hero .mark { width:30px; height:30px; border-radius:8px; background:var(--accent); color:#fff; display:flex; align-items:center; justify-content:center; flex:0 0 auto; }
-  .profile-hero h2 { font-size:14px; margin-bottom:3px; }
-  .profile-hero p { color:var(--text2); font-size:11px; line-height:1.55; }
-  .profile-grid { display:grid; grid-template-columns:1fr 1fr; gap:7px; margin:8px 0; }
-  .profile-field { padding:8px; border:1px solid var(--line); border-radius:8px; background:var(--panel); min-height:48px; }
-  .profile-field .k { color:var(--text3); font-size:10px; margin-bottom:3px; }
-  .profile-field .v { color:var(--text); font-size:11px; line-height:1.45; word-break:break-word; }
-  .profile-actions { display:flex; gap:7px; flex-wrap:wrap; margin-top:9px; }
+  @media (max-width: 560px) { .pacing-grid { grid-template-columns:1fr; } .stats { grid-template-columns:1fr 1fr; } }
+  .profile-compact textarea { min-height:128px; resize:vertical; line-height:1.6; }
   .profile-form { display:grid; gap:8px; }
-  .profile-form-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
   .profile-form label { display:flex; flex-direction:column; gap:4px; color:var(--text2); font-size:10px; }
-  .profile-form label.full { grid-column:1 / -1; }
   .profile-form input, .profile-form textarea { width:100%; background:var(--panel); border:1px solid var(--line); border-radius:7px; padding:7px 8px; color:var(--text); font:inherit; font-size:11px; outline:none; }
   .profile-form input:focus, .profile-form textarea:focus { border-color:var(--accent); }
   .profile-form textarea { min-height:58px; resize:vertical; line-height:1.5; }
@@ -194,11 +184,6 @@
   .delivery-form input, .delivery-form textarea { width:100%; background:var(--panel); border:1px solid var(--line); border-radius:7px; padding:7px 8px; color:var(--text); font:inherit; font-size:11px; outline:none; }
   .delivery-form textarea { min-height:48px; resize:vertical; line-height:1.5; }
   .delivery-form input:focus, .delivery-form textarea:focus { border-color:var(--accent); }
-  .resume-card { padding:10px; border:1px solid var(--line); border-radius:9px; background:var(--panel2); margin-bottom:7px; }
-  .resume-card .head { display:flex; justify-content:space-between; gap:8px; align-items:center; }
-  .resume-card .name { font-size:12px; font-weight:600; }
-  .resume-card .meta { color:var(--text3); font-size:10px; margin-top:4px; line-height:1.5; }
-  .resume-card .resume-preview { color:var(--text2); font-size:11px; line-height:1.55; margin-top:7px; max-height:52px; overflow:hidden; white-space:pre-wrap; }
   .notice { padding:9px 10px; border-radius:8px; background:var(--amber-soft); color:var(--amber); font-size:11px; line-height:1.55; margin-bottom:8px; }
   #install-status { color: var(--accent); margin-left: 5px; }
   @media (max-width: 1100px) { .sidebar { width: 210px; } .side-pane { width: 360px; min-width: 300px; } }
@@ -221,8 +206,8 @@
     .side-pane { width: 100%; min-width: 0; max-width: 100%; }
     .side-tabs button { min-width: 52px; padding-left: 3px; padding-right: 3px; }
     .platform-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-    .profile-form-grid, .delivery-form-grid { grid-template-columns: 1fr; }
-    .profile-form label.full, .delivery-form label.full { grid-column: auto; }
+    .delivery-form-grid { grid-template-columns: 1fr; }
+    .delivery-form label.full { grid-column: auto; }
   }
 </style>
 </head>
@@ -253,8 +238,7 @@
   <div class="side-pane">
           <div class="side-tabs">
       <button data-tab="overview" class="active"><i class="ti ti-layout-grid"></i>概览</button>
-      <button data-tab="profile"><i class="ti ti-user-circle"></i>资料</button>
-      <button data-tab="resume"><i class="ti ti-file-cv"></i>简历</button>
+      <button data-tab="records"><i class="ti ti-list-details"></i>投递记录</button>
       <button class="tab-settings" id="tab-settings-btn" title="设置"><i class="ti ti-settings"></i></button>
     </div>
     <div class="side-content">
@@ -276,11 +260,11 @@
           </div>
           <div class="time">这里按数量执行一轮；右上角“开始持续投递”不设数量限制，会按节奏持续运行。<span id="hunt-status"></span></div>
         </div>
+        <div id="profile-panel"></div>
         <div class="stats" id="stats-cards">
           <div class="stat-card hl"><div class="num">—</div><div class="label">今日投递</div></div>
           <div class="stat-card"><div class="num">—</div><div class="label">累计投递</div></div>
-           <div class="stat-card"><div class="num">—</div><div class="label">最近记录</div></div>
-           <div class="stat-card"><div class="num">—</div><div class="label">有记录的平台</div></div>
+          <div class="stat-card"><div class="num">—</div><div class="label">有记录的平台</div></div>
         </div>
         <div class="card">
           <div class="section-head"><h3>投递平台</h3><span class="time" id="platform-summary-note">加载中…</span></div>
@@ -288,31 +272,16 @@
         </div>
         <div class="card guide-card">
           <i class="ti ti-adjustments-horizontal guide-icon"></i>
-          <p><strong>先配置，再执行</strong><br>在“资料”和“设置”中填写求职信息、平台搜索偏好与云端模型 API；准备好后可点击“开始本轮”按数量投递，或点击右上角“开始持续投递”按节奏持续运行。外部 Agent 接入 MCP 时，也会使用这里的同一份资料、任务状态和投递记录。</p>
+          <p><strong>先配置，再执行</strong><br>在概览里的“JD 判断资料”框填写个人背景和限制，在“设置”配置平台、城市、关键词、薪资与云端模型 API；准备好后可点击“开始本轮”按数量投递，或点击右上角“开始持续投递”按节奏持续运行。完整结果请到“投递记录”查看。</p>
         </div>
         <div class="card"><h3>投递方向</h3><div id="industry-stats"></div></div>
+      </div>
+      <div class="panel" id="panel-records">
         <div class="card" style="padding:0">
-          <h3 style="padding:12px 12px 0">最近投递</h3>
-           <div style="overflow-x:auto"><table><thead><tr><th>时间</th><th>平台</th><th>岗位</th><th>公司</th><th>结果</th></tr></thead><tbody id="apps-body"></tbody></table></div>
+          <div class="section-head" style="padding:12px 12px 0"><h3>投递记录</h3><button class="btn sm" id="records-refresh" type="button"><i class="ti ti-refresh"></i>刷新</button></div>
+          <div class="settings-note" style="padding:0 12px 9px">这里展示本机数据库中已记录的实际投递结果。</div>
+          <div style="overflow-x:auto"><table><thead><tr><th>时间</th><th>平台</th><th>岗位</th><th>公司</th><th>结果</th></tr></thead><tbody id="apps-body"></tbody></table></div>
         </div>
-      </div>
-      <div class="panel" id="panel-profile">
-        <div id="profile-panel"></div>
-      </div>
-      <div class="panel" id="panel-resume">
-         <div class="notice"><strong>简历工作台</strong><br>独立版可以直接粘贴并保存基础简历；MCP 版可由外部 Agent 生成草稿后写入。每个版本会单独保存；同步到招聘平台前需要校准和确认。</div>
-        <div class="card">
-          <div class="delivery-form">
-            <div class="delivery-form-grid">
-              <label>简历名称<input id="resume-name" placeholder="例如：行政文职基础版"></label>
-              <label>适用平台<select id="resume-platform"><option value="all">通用</option><option value="boss">Boss直聘</option><option value="zhilian">智联招聘</option><option value="job51">51job（前程无忧）</option><option value="liepin">猎聘</option></select></label>
-              <label class="full">简历正文<textarea id="resume-content" rows="8" placeholder="粘贴你的简历正文；保存后会进入简历版本库"></textarea></label>
-            </div>
-            <div class="profile-form-actions"><button class="btn primary" id="save-resume">保存简历版本</button><span class="time" id="resume-save-status"></span></div>
-          </div>
-        </div>
-        <div id="resume-list"></div>
-        <div class="empty" id="resume-empty" style="display:none">还没有简历版本。先在上方粘贴并保存一份基础简历。</div>
       </div>
     </div>
 
@@ -343,7 +312,7 @@
         </div>
           <div class="card">
            <h3>投递偏好</h3>
-           <div class="settings-note" style="margin-top:0;margin-bottom:9px">方向、城市和薪资可以按平台分别保存；资料页保存的长期方向会同步到所有已存在的平台配置。</div>
+           <div class="settings-note" style="margin-top:0;margin-bottom:9px">方向、城市和薪资可以按平台分别保存；概览里的 JD 判断资料框只保存岗位判断补充条件。</div>
            <div class="delivery-form">
              <div class="delivery-form-grid">
               <label>目标平台<select id="delivery-platform"><option value="boss">Boss直聘</option><option value="zhilian">智联招聘</option><option value="job51">51job（前程无忧）</option><option value="liepin">猎聘</option><option value="all">全部平台</option></select></label>
@@ -406,6 +375,6 @@
     </div>
   </div>
 </div>
-<script src="/app.js?v=20260828-remove-default-limit1"></script>
+<script src="/app.js?v=20260831-profile-records1"></script>
 </body>
 </html>

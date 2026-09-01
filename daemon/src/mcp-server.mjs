@@ -4,8 +4,7 @@ import * as store from './store.mjs'
 import { getLlmConfig } from './llm.mjs'
 import { readDeliveryConfig, updateDeliveryConfig } from './delivery-config.mjs'
 import { readWorkbenchSettings, updateWorkbenchSettings } from './workbench-settings.mjs'
-import { getUserProfile, applyDeliveryPreferences, updateUserProfile } from './profile-engine.mjs'
-import { listUserResumes, saveResumeVersion, syncPlatformResume } from './resume-engine.mjs'
+import { getUserProfile, updateUserProfile } from './profile-engine.mjs'
 import { PLATFORMS, PLATFORM_NAMES, getAdapter, inspectPlatformLogin, listEnabledPlatforms } from './platforms/index.mjs'
 import {
   setPaused,
@@ -59,9 +58,9 @@ export function createJobMcpServer() {
       rules: [
         'Do not start applying unless the user explicitly asks to start or apply a stated number of jobs.',
         'Before explaining a failed or stalled delivery, call job_get_status and use the returned plan and browser diagnostics.',
-        'Changes to city, target roles, salary, or preferences are long-term by default and can be synchronized to the configured platforms; use temporary scope only when the user explicitly asks for one round only.',
+        'Use job_update_delivery_preferences as the only source for city, target roles, salary, and platform filters; saved changes persist to the selected platform or platforms.',
         'Delivery scheduling is per-platform: a platform enters its own cooldown after a random batch, and other ready platforms may run during that cooldown. The daily delivery window stops new jobs after its end time.',
-        'The MCP exposes delivery, profile, resume, JD and status tools; it has no message or reply tools.',
+        'The MCP exposes delivery, profile, JD judgment, and status tools; it has no resume, message, or reply tools.',
         'If status is blocked by login, captcha, risk, or city mismatch, ask the user to inspect the visible browser. Do not try to bypass it.'
       ],
       unattendedBatchDecision: 'A background batch uses the user-configured cloud model API to judge JD fit. The external Agent remains responsible for discussion, planning and approval.'
@@ -142,15 +141,15 @@ export function createJobMcpServer() {
 
   server.tool(
     'job_get_delivery_config',
-    'Read one platform or all persisted delivery configurations and the user profile that drives long-term matching. No browser action is taken.',
+    'Read one platform or all persisted delivery configurations. These values are the source for actual delivery conditions; no browser action is taken.',
     { platform: PLATFORM_ENUM.optional() },
     READ_ONLY,
-    async ({ platform = 'boss' }) => asResult({ config: readDeliveryConfig(platform), profile: getUserProfile('default') })
+    async ({ platform = 'boss' }) => asResult({ config: readDeliveryConfig(platform) })
   )
 
   server.tool(
     'job_update_delivery_preferences',
-    'Persist the user’s delivery direction. By default this updates the long-term profile and the selected platform configuration; use platform="all" to update all platform configs. Use scope="temporary" only if the user explicitly asked for this round only. This does not start applying.',
+    'Persist city, target roles, salary, and platform filters directly in the selected platform configuration. This is the only source for delivery conditions; it does not change personal background data or start delivery. Use platform="all" to update every supported platform.',
     {
       platform: PLATFORM_ENUM.optional(),
       city: z.string().optional(),
@@ -158,32 +157,22 @@ export function createJobMcpServer() {
       salaryMin: z.number().min(0).optional(),
       enabled: z.boolean().optional(),
       companyExclusions: z.string().optional(),
-      jobRiskExclusions: z.string().optional(),
-      scope: z.enum(['long_term', 'temporary']).optional().describe('Default long_term. temporary must be explicitly requested by the user.')
+      jobRiskExclusions: z.string().optional()
     },
     MUTATING,
-    async ({ platform = 'boss', city, targetRoles, salaryMin, enabled, companyExclusions, jobRiskExclusions, scope = 'long_term' }) => {
-      const profilePatch = {}
-      if (city !== undefined) profilePatch.city = city
-      if (targetRoles !== undefined) profilePatch.targetRoles = targetRoles
-      if (salaryMin !== undefined) profilePatch.salaryMin = salaryMin
-      let preferenceResult = { ok: true, skipped: true }
-      if (Object.keys(profilePatch).length) {
-        preferenceResult = applyDeliveryPreferences({
-          ownerId: 'default',
-          patch: profilePatch,
-          scope: scope === 'temporary' ? 'active' : 'default',
-          applyPlatforms: true
-        })
-      }
-      const configPatch = {}
+    async ({ platform = 'boss', city, targetRoles, salaryMin, enabled, companyExclusions, jobRiskExclusions }) => {
+      const configPatch = { platform }
+      if (city !== undefined) configPatch.city = city
+      if (targetRoles !== undefined) configPatch.keywords = targetRoles
+      if (salaryMin !== undefined) configPatch.salaryMin = salaryMin
       if (enabled !== undefined) configPatch.enabled = enabled
       if (companyExclusions !== undefined) configPatch.companyExclusions = companyExclusions
       if (jobRiskExclusions !== undefined) configPatch.jobRiskExclusions = jobRiskExclusions
-      const configResult = Object.keys(configPatch).length
-        ? updateDeliveryConfig({ ...configPatch, platform })
-        : { ok: true, config: readDeliveryConfig(platform) }
-      return asResult({ ok: preferenceResult.ok !== false && configResult.ok !== false, scope, preferenceResult, configResult, profile: getUserProfile('default') }, preferenceResult.ok === false || configResult.ok === false)
+      const configResult = updateDeliveryConfig(configPatch)
+      return asResult({
+        ok: configResult.ok !== false,
+        config: configResult.config || configResult.configs || readDeliveryConfig(platform)
+      }, configResult.ok === false)
     }
   )
 
@@ -289,7 +278,7 @@ export function createJobMcpServer() {
 
   server.tool(
     'job_get_profile',
-    'Read the current user profile used for job matching. It does not expose API keys or browser login state.',
+    'Read the optional single-text JD judgment profile. Platform city, target roles, salary, and filters are not read from this profile; use job_get_delivery_config for those values.',
     {},
     READ_ONLY,
     async () => asResult({ profile: getUserProfile('default') })
@@ -297,44 +286,12 @@ export function createJobMcpServer() {
 
   server.tool(
     'job_update_profile',
-    'Persist user profile information. This is a write operation; call only after the user has confirmed the content. Set confirmed=true to perform the save. Set applyPlatforms=true when the change should also update BOSS matching preferences.',
-    { patch: z.record(z.string(), z.any()), applyPlatforms: z.boolean().optional(), confirmed: z.boolean() },
+    'Persist the optional single-text JD judgment profile. Put experience, skills, work preferences, and constraints in patch.jdProfile; do not put city, target roles, salary, or platform filters here. This is a write operation and requires explicit confirmation.',
+    { patch: z.record(z.string(), z.any()), confirmed: z.boolean() },
     MUTATING,
-    async ({ patch, applyPlatforms = false, confirmed }) => {
+    async ({ patch, confirmed }) => {
       if (confirmed !== true) return asResult({ ok: false, reason: 'explicit_user_confirmation_required' }, true)
-      const result = updateUserProfile({ ownerId: 'default', patch, confirm: true, applyPlatforms })
-      return asResult(result, result.ok === false)
-    }
-  )
-
-  server.tool(
-    'job_list_resumes',
-    'List locally saved resume versions. No platform resume is changed.',
-    {},
-    READ_ONLY,
-    async () => asResult({ resumes: listUserResumes('default') })
-  )
-
-  server.tool(
-    'job_save_resume_version',
-    'Save an externally drafted resume version locally. The external Agent should write the content; this tool stores it and does not upload it to BOSS.',
-    { name: z.string().min(1), content: z.string().min(1), platform: z.string().optional(), confirmed: z.boolean() },
-    MUTATING,
-    async ({ name, content, platform = 'all', confirmed }) => {
-      if (confirmed !== true) return asResult({ ok: false, reason: 'explicit_user_confirmation_required' }, true)
-      const result = saveResumeVersion({ ownerId: 'default', name, content, platform, source: 'mcp', confirm: true })
-      return asResult(result, result.ok === false)
-    }
-  )
-
-  server.tool(
-    'job_sync_resume_to_boss',
-    'Request BOSS resume synchronization for one saved resume. This can alter a platform profile, so call only after the user explicitly approves it.',
-    { resumeId: z.string(), confirmed: z.boolean() },
-    MUTATING,
-    async ({ resumeId, confirmed }) => {
-      if (confirmed !== true) return asResult({ ok: false, reason: 'explicit_user_confirmation_required' }, true)
-      const result = await syncPlatformResume({ ownerId: 'default', resumeId, platform: 'boss', confirm: true })
+      const result = updateUserProfile({ ownerId: 'default', patch, confirm: true })
       return asResult(result, result.ok === false)
     }
   )

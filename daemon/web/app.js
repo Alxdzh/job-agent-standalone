@@ -46,7 +46,7 @@ function initAppShell() {
   })
 
   if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('/sw.js?v=20260829-platform-enable-fix1').catch(() => {})
+    navigator.serviceWorker.register('/sw.js?v=20260831-profile-records1').catch(() => {})
   }
 }
 
@@ -78,30 +78,41 @@ function tab(name) {
   currentTab = name
   document.querySelectorAll('.side-tabs button').forEach(b => b.classList.toggle('active', b.dataset.tab === name))
   document.querySelectorAll('.panel').forEach(p => p.classList.toggle('active', p.id === 'panel-' + name))
-  if (name === 'overview') loadStats()
-  if (name === 'profile') loadProfile()
-  if (name === 'resume') loadResumes()
+  if (name === 'overview') {
+    loadStats()
+    loadProfile()
+  }
+  if (name === 'records') loadApplications()
 }
 document.querySelectorAll('.side-tabs button[data-tab]').forEach(b => b.addEventListener('click', () => tab(b.dataset.tab)))
 
 // ===== 概览 =====
 async function loadStats() {
-  const [s, apps] = await Promise.all([api('GET', '/api/stats'), api('GET', '/api/applications?limit=50')])
+  const s = await api('GET', '/api/stats')
   const st = s.data || {}
-  const rows = (apps.data || []).slice(0, 20)
   const platformCount = Object.keys(st.byPlatform || {}).length
   $('stats-cards').innerHTML = `
     <div class="stat-card hl"><div class="num">${st.todayApplied || 0}</div><div class="label">今日投递</div></div>
     <div class="stat-card"><div class="num">${st.totalApplied || 0}</div><div class="label">累计投递</div></div>
-    <div class="stat-card"><div class="num">${rows.length}</div><div class="label">最近记录</div></div>
     <div class="stat-card"><div class="num">${platformCount}</div><div class="label">有记录的平台</div></div>`
   const industry = st.industry || []
   $('industry-stats').innerHTML = industry.length
     ? industry.map(i => `<span class="tag" style="margin:0 6px 6px 0;background:var(--accent-soft);color:var(--accent)">${escapeHtml(i.name)} ×${i.count}</span>`).join('')
     : '<span class="time">暂无</span>'
-  $('apps-body').innerHTML = rows.length ? rows.map(a => `
+}
+
+function renderApplicationRows(rows) {
+  const body = $('apps-body')
+  if (!body) return
+  body.innerHTML = rows.length ? rows.map(a => `
     <tr><td class="time">${new Date(a.time).toLocaleString()}</td><td><span class="tag" style="background:var(--accent-soft);color:var(--accent)">${escapeHtml(PLATFORM_LABELS[a.platform] || a.platform || '未知平台')}</span></td><td>${escapeHtml(a.jobName || '')}</td><td>${escapeHtml(a.brandName || '')}</td><td><span class="tag ${a.sent ? 'green' : 'red'}">${a.sent ? '已投' : '失败'}</span></td></tr>`).join('')
     : '<tr><td colspan="5" class="empty">还没有投递记录</td></tr>'
+}
+
+async function loadApplications() {
+  const r = await api('GET', '/api/applications?limit=100')
+  const rows = Array.isArray(r.data) ? r.data : (Array.isArray(r.data?.applications) ? r.data.applications : [])
+  renderApplicationRows(rows)
 }
 
 function platformSummaryState(item) {
@@ -239,98 +250,34 @@ async function checkAllPlatformLogins() {
   if (btn) { btn.disabled = false; btn.textContent = '重新检测已启用平台登录状态' }
 }
 
-function profileValue(value, fallback = '未设置') {
-  if (Array.isArray(value)) return value.length ? value.join('、') : fallback
-  return String(value || '').trim() || fallback
-}
-function profileInputValue(value) {
-  return Array.isArray(value) ? value.join('、') : String(value || '')
-}
 async function loadProfile() {
   const r = await api('GET', '/api/profile?ownerId=' + encodeURIComponent(currentOwner))
   const p = r.data?.profile || {}
-  const roles = profileInputValue(p.activeTargetRoles?.length ? p.activeTargetRoles : p.targetRoles)
-  const cities = profileInputValue(p.cities || (p.city ? [p.city] : []))
+  const profileText = String(p.jdProfile || '')
   $('profile-panel').innerHTML = `
-    <div class="profile-hero"><div class="mark"><i class="ti ti-user-star"></i></div><div><h2>${p.displayName ? escapeHtml(p.displayName) : '建立你的求职档案'}</h2><p>${p.headline ? escapeHtml(p.headline) : '独立版在这里手动填写资料；MCP 版的外部 Agent 也会使用同一份资料。保存后可同步 BOSS 搜索方向。'}</p></div></div>
-    <div class="card"><h3>手动求职资料</h3><div class="profile-form">
-      <div class="profile-form-grid">
-        <label>姓名<input id="profile-display-name" value="${escapeHtml(p.displayName || '')}" placeholder="你的姓名"></label>
-        <label>职业标题<input id="profile-headline" value="${escapeHtml(p.headline || '')}" placeholder="例如：目标职位名称"></label>
-        <label>目标方向（逗号或换行分隔）<textarea id="profile-target-roles" rows="2" placeholder="职位名称、职位方向、相关关键词">${escapeHtml(roles)}</textarea></label>
-        <label>城市（逗号或换行分隔）<input id="profile-cities" value="${escapeHtml(cities)}" placeholder="例如：城市名"></label>
-        <label>最低薪资（K）<input id="profile-salary-min" type="number" min="0" step="0.1" value="${p.salaryMin ?? ''}" placeholder="5"></label>
-        <label>最高薪资（K）<input id="profile-salary-max" type="number" min="0" step="0.1" value="${p.salaryMax ?? ''}" placeholder="可留空"></label>
-        <label>休息与工时偏好<input id="profile-rest" value="${escapeHtml(p.restPreference || '')}" placeholder="例如：双休、少加班"></label>
-        <label>福利偏好<input id="profile-benefits" value="${escapeHtml(p.benefitsPreference || '')}" placeholder="例如：五险一金、节假日正常"></label>
-        <label>工作方式<input id="profile-work-mode" value="${escapeHtml(p.workMode || '')}" placeholder="例如：全职、线下"></label>
-        <label>其他限制<input id="profile-constraints" value="${escapeHtml(p.constraints || '')}" placeholder="不接受的条件"></label>
-        <label class="full">个人概述<textarea id="profile-summary" rows="4" placeholder="教育、经历、优势和求职简介">${escapeHtml(p.summary || '')}</textarea></label>
-        <label class="full">详细经历<textarea id="profile-experience" rows="5" placeholder="按时间填写工作或项目经历">${escapeHtml(p.experience || '')}</textarea></label>
-        <label class="full">教育背景<textarea id="profile-education" rows="3" placeholder="学历、专业、证书">${escapeHtml(p.education || '')}</textarea></label>
-        <label class="full">技能关键词<textarea id="profile-skills" rows="2" placeholder="技能、工具或证书；用逗号或换行分隔">${escapeHtml(profileInputValue(p.skills))}</textarea></label>
-        <label class="full">补充备注<textarea id="profile-notes" rows="3" placeholder="需要长期保留的求职要求">${escapeHtml(p.notes || '')}</textarea></label>
+    <div class="card profile-compact"><div class="section-head"><div><h3>求职资料</h3><div class="settings-note" style="margin-top:3px">把你的经历、技能、求职限制和在意的条件写在这里，供系统判断 JD 是否匹配。</div></div></div>
+      <div class="profile-form" style="margin-top:9px">
+        <label>个人资料与岗位判断补充<textarea id="profile-jd-context" rows="8" placeholder="例如：我有……经历，熟悉……；希望……；不接受……">${escapeHtml(profileText)}</textarea></label>
+        <div class="profile-form-actions"><button class="btn primary" onclick="saveProfileForm()">保存资料</button><span class="time" id="profile-save-status"></span></div>
+        <div class="settings-note">只保存到本机资料库，不修改设置里的城市、关键词、薪资或平台，也不会自动开始投递。</div>
       </div>
-      <div class="profile-form-actions"><button class="btn primary" onclick="saveProfileForm()">保存资料并同步 BOSS</button><span class="time" id="profile-save-status"></span></div>
-      <div class="settings-note">保存会写入本机资料库，并把城市、关键词和最低薪资同步到已存在的平台配置；不会自动开始投递。</div>
-    </div></div>`
+    </div>`
 }
 window.saveProfileForm = async function() {
   const status = $('profile-save-status')
   const value = id => $(id)?.value?.trim() || ''
-  const number = id => value(id) === '' ? null : Number(value(id))
   const body = {
     ownerId: currentOwner,
     confirm: true,
-    applyPlatforms: true,
-    patch: {
-      displayName: value('profile-display-name'), headline: value('profile-headline'),
-      targetRoles: value('profile-target-roles'), cities: value('profile-cities'),
-      salaryMin: number('profile-salary-min'), salaryMax: number('profile-salary-max'),
-      restPreference: value('profile-rest'), benefitsPreference: value('profile-benefits'),
-      workMode: value('profile-work-mode'), constraints: value('profile-constraints'),
-      summary: value('profile-summary'), experience: value('profile-experience'),
-      education: value('profile-education'), skills: value('profile-skills'), notes: value('profile-notes')
-    }
-  }
-  if (![body.patch.targetRoles, body.patch.cities, body.patch.summary, body.patch.experience].some(Boolean)) {
-    status.textContent = '至少填写目标方向、城市或个人经历中的一项'
-    return
+    patch: { jdProfile: value('profile-jd-context') }
   }
   status.textContent = '保存中…'
   const r = await api('POST', '/api/profile', body)
   if (r.data?.ok) {
-    status.textContent = '已保存，并已同步已存在的平台配置 ✅'
+    status.textContent = '已保存资料 ✅'
     await loadProfile()
-    await loadDeliveryConfig()
   } else status.textContent = `保存失败：${r.data?.error || r.error || '未知错误'}`
 }
-async function loadResumes() {
-  const r = await api('GET', '/api/resumes?ownerId=' + encodeURIComponent(currentOwner))
-  const list = r.data?.resumes || []
-  const box = $('resume-list')
-  box.innerHTML = list.map(x => `<div class="resume-card"><div class="head"><span class="name">${escapeHtml(x.name || '未命名简历')}</span><span class="tag ${x.status === 'ready' ? 'green' : ''}">${escapeHtml(x.platform || 'all')} · v${x.version || 1}</span></div><div class="meta">${escapeHtml(x.source || 'manual')} · ${x.updatedAt ? new Date(x.updatedAt).toLocaleString() : '刚刚'}</div><div class="resume-preview">${escapeHtml(x.content || '暂无正文')}</div></div>`).join('')
-  $('resume-empty').style.display = list.length ? 'none' : 'block'
-}
-async function saveResumeForm() {
-  const status = $('resume-save-status')
-  const content = $('resume-content')?.value?.trim() || ''
-  if (!content) { status.textContent = '请先粘贴简历正文'; return }
-  status.textContent = '保存中…'
-  const r = await api('POST', '/api/resumes', {
-    ownerId: currentOwner,
-    name: $('resume-name')?.value?.trim() || '基础简历',
-    platform: $('resume-platform')?.value || 'all',
-    content,
-    source: 'manual',
-    confirm: true
-  })
-  if (r.data?.ok) {
-    status.textContent = '已保存简历版本 ✅'
-    await loadResumes()
-  } else status.textContent = `保存失败：${r.data?.error || r.error || '未知错误'}`
-}
-
 // ===== 状态 & 设置 =====
 async function refreshStatus() {
   if (agentExited) return
@@ -655,14 +602,16 @@ async function saveRuntimeSettings() {
 }
 
 $('save-runtime')?.addEventListener('click', saveRuntimeSettings)
-$('save-resume')?.addEventListener('click', saveResumeForm)
 $('check-all-platform-logins')?.addEventListener('click', checkAllPlatformLogins)
 $('delivery-platform')?.addEventListener('change', loadDeliveryConfig)
+$('records-refresh')?.addEventListener('click', loadApplications)
 
 async function manualRefresh() {
   await refreshStatus()
   if (currentTab === 'overview') {
-    await Promise.all([loadStats(), loadPlatformSummary()])
+    await Promise.all([loadStats(), loadPlatformSummary(), loadProfile()])
+  } else if (currentTab === 'records') {
+    await loadApplications()
   }
 }
 $('btn-refresh')?.addEventListener('click', manualRefresh)
@@ -674,6 +623,6 @@ window.addEventListener('DOMContentLoaded', () => {
   loadStats(); refreshStatus()
   loadPlatformSummary()
   loadRuntimeSettings(); loadDeliveryConfig()
-  loadProfile(); loadResumes()
+  loadProfile()
   setInterval(() => { refreshStatus() }, 5000)
 })
