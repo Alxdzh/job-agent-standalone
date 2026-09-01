@@ -2,7 +2,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import os from 'node:os'
 
-const CONFIG_DIR = process.env.GEEK_GEEK_RUN_CONFIG || path.join(os.homedir(), '.geekgeekrun', 'config')
+const CONFIG_DIR = process.env.JOB_AGENT_CONFIG_DIR || path.join(os.homedir(), '.job-agent', 'config')
 const SETTINGS_FILE = path.join(CONFIG_DIR, 'workbench.json')
 
 const DEFAULTS = {

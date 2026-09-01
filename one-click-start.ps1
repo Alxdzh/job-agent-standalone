@@ -7,8 +7,8 @@ $ErrorActionPreference = 'Stop'
 $Root = Split-Path -Parent $MyInvocation.MyCommand.Path
 $DaemonDir = Join-Path $Root 'daemon'
 $ConfigExampleDir = Join-Path $DaemonDir 'config.example'
-$ConfigDir = Join-Path $env:USERPROFILE '.geekgeekrun\config'
-$StorageDir = Join-Path $env:USERPROFILE '.geekgeekrun\storage'
+$ConfigDir = Join-Path $env:USERPROFILE '.job-agent\config'
+$StorageDir = Join-Path $env:USERPROFILE '.job-agent\storage'
 $StateDir = Join-Path $DaemonDir 'state'
 $Port = 8788
 $WorkbenchUrl = "http://127.0.0.1:$Port/"
@@ -167,9 +167,9 @@ function Ensure-RunOnlyEnvironment {
 }
 
 function Start-Workbench([hashtable]$Runtime) {
-  $env:GEEK_RUN_ROOT = $DaemonDir
-  $env:GEEK_GEEK_RUN_CONFIG = $ConfigDir
-  $env:GEEK_GEEK_RUN_STORAGE = $StorageDir
+  $env:JOB_AGENT_DEPENDENCY_ROOT = $DaemonDir
+  $env:JOB_AGENT_CONFIG_DIR = $ConfigDir
+  $env:JOB_AGENT_STORAGE_DIR = $StorageDir
   $env:BOSS_DAEMON_STATE = $StateDir
   $env:BOSS_CHROME_PATH = $Runtime.Chrome
   Stop-ConflictingWorkbench

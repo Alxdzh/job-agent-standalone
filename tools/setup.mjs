@@ -25,8 +25,8 @@ function run(command, args, options = {}) {
 }
 
 function ensureLocalConfig() {
-  const configDir = path.join(HOME, '.geekgeekrun', 'config')
-  const storageDir = path.join(HOME, '.geekgeekrun', 'storage')
+  const configDir = path.join(HOME, '.job-agent', 'config')
+  const storageDir = path.join(HOME, '.job-agent', 'storage')
   fs.mkdirSync(configDir, { recursive: true })
   fs.mkdirSync(storageDir, { recursive: true })
   fs.mkdirSync(path.join(DAEMON, 'state'), { recursive: true })

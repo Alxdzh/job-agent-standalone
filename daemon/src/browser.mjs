@@ -7,12 +7,12 @@ import { readWorkbenchSettings } from './workbench-settings.mjs'
 const CURRENT_DIR = path.dirname(fileURLToPath(import.meta.url))
 
 // dependency root for puppeteer-extra.
-// 1. GEEK_RUN_ROOT env if set and exists
+// 1. JOB_AGENT_DEPENDENCY_ROOT env if set and exists
 // 2. dependencies installed beside this package
 // 3. an optional sibling deps directory for portable deployments
-function resolveGeekRunRoot() {
+function resolveDependencyRoot() {
   const candidates = [
-    process.env.GEEK_RUN_ROOT,
+    process.env.JOB_AGENT_DEPENDENCY_ROOT,
     path.join(CURRENT_DIR, '..'),
     path.join(CURRENT_DIR, '..', '..', 'deps')
   ].filter(Boolean)
@@ -24,8 +24,8 @@ function resolveGeekRunRoot() {
   return candidates[0]
 }
 
-const GEEK_RUN_ROOT = resolveGeekRunRoot()
-const STORAGE_DIR = process.env.GEEK_GEEK_RUN_STORAGE || path.join(os.homedir(), '.geekgeekrun', 'storage')
+const DEPENDENCY_ROOT = resolveDependencyRoot()
+const STORAGE_DIR = process.env.JOB_AGENT_STORAGE_DIR || path.join(os.homedir(), '.job-agent', 'storage')
 
 function resolveChromePath() {
   const candidates = [process.env.BOSS_CHROME_PATH, process.env.CHROME_PATH]
@@ -72,15 +72,15 @@ const DEBUG_PORTS = {
 }
 // createRequire 需要文件路径；使用包根目录下的虚拟文件，避免换电脑/换目录后
 // 把依赖解析到包的父目录。
-const ggr = createRequire(path.join(GEEK_RUN_ROOT, 'noop.js'))
-const puppeteerExtra = ggr('puppeteer-extra')
+const dependencyRequire = createRequire(path.join(DEPENDENCY_ROOT, 'noop.js'))
+const puppeteerExtra = dependencyRequire('puppeteer-extra')
 // Restore the project's original anti-detection plugin chain.
 // Laodeng is kept outside node_modules because npm install may remove it.
 const LAODENG_DIR = process.env.BOSS_LAODENG_DIR || path.join(CURRENT_DIR, '..', 'laodeng')
 const laodengRequire = createRequire(path.join(LAODENG_DIR, 'noop.js'))
-const StealthPlugin = ggr('puppeteer-extra-plugin-stealth')
+const StealthPlugin = dependencyRequire('puppeteer-extra-plugin-stealth')
 const LaodengPlugin = laodengRequire(path.join(LAODENG_DIR, '@geekgeekrun', 'puppeteer-extra-plugin-laodeng', 'index.js'))
-const AnonymizeUaPlugin = ggr('puppeteer-extra-plugin-anonymize-ua')
+const AnonymizeUaPlugin = dependencyRequire('puppeteer-extra-plugin-anonymize-ua')
 puppeteerExtra.use(StealthPlugin())
 puppeteerExtra.use(LaodengPlugin())
 puppeteerExtra.use(AnonymizeUaPlugin({ makeWindows: false }))
@@ -251,7 +251,7 @@ export async function launchPlatform({ platform = 'boss', homeUrl, cookiesFileNa
   instances.set(platform, { browser, page })
   await syncWindowVisibility(page, silentMode)
   // NOTE: login state comes from the persistent userDataDir profile now.
-  // If cookies file exists (from geekgeekrun), inject it once as a fallback bootstrap.
+  // If a cookies file exists, inject it once as a fallback bootstrap.
   const saved = readJson(path.join(STORAGE_DIR, cookiesFileName))
   if (saved && saved.length) {
     try { await injectSession(page, null, homeUrl, cookiesFileName) } catch {}

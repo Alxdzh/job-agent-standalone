@@ -22,7 +22,7 @@ const WEB_DIR = fs.existsSync(DAEMON_WEB_DIR)
   ? DAEMON_WEB_DIR
   : path.join(__dirname, '..', '..', 'web')
 const LOG_DIR = path.join(__dirname, '..', 'log')
-const CONFIG_DIR = process.env.GEEK_GEEK_RUN_CONFIG || path.join(os.homedir(), '.geekgeekrun', 'config')
+const CONFIG_DIR = process.env.JOB_AGENT_CONFIG_DIR || path.join(os.homedir(), '.job-agent', 'config')
 const PORT = Number(process.env.BOSS_DAEMON_PORT || 8788)
 const HOST = process.env.BOSS_DAEMON_HOST || '0.0.0.0'
 let shutdownRequested = false

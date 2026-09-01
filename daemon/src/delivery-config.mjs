@@ -3,7 +3,7 @@ import os from 'node:os'
 import path from 'node:path'
 import { readConfig } from './llm.mjs'
 
-const CONFIG_DIR = process.env.GEEK_GEEK_RUN_CONFIG || path.join(os.homedir(), '.geekgeekrun', 'config')
+const CONFIG_DIR = process.env.JOB_AGENT_CONFIG_DIR || path.join(os.homedir(), '.job-agent', 'config')
 const SUPPORTED_PLATFORMS = ['boss', 'zhilian', 'job51', 'liepin']
 
 function asKeywords(value) {

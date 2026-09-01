@@ -32,7 +32,7 @@ try {
     cwd: daemonDir,
     env: {
       ...process.env,
-      GEEK_GEEK_RUN_CONFIG: configDir,
+      JOB_AGENT_CONFIG_DIR: configDir,
       BOSS_DAEMON_STATE: stateDir,
       JOB_AGENT_LOG_DIR: logDir,
       BOSS_DAEMON_HOST: '127.0.0.1',

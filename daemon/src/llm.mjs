@@ -3,7 +3,7 @@ import path from 'node:path'
 import fs from 'node:fs'
 import * as store from './store.mjs'
 
-const CONFIG_DIR = process.env.GEEK_GEEK_RUN_CONFIG || path.join(os.homedir(), '.geekgeekrun', 'config')
+const CONFIG_DIR = process.env.JOB_AGENT_CONFIG_DIR || path.join(os.homedir(), '.job-agent', 'config')
 
 // 仅作为接口不提供 /models 时的兜底候选；实际支持的列表优先从当前接口读取。
 // 保留当前项目曾使用过的值，避免升级后把已有配置改成另一个模型。

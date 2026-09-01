@@ -24,7 +24,7 @@ import { saveStorage, getPlatformBrowserInfo, setActivePlatform, sleep } from '.
 // =====================================================================
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
-const CONFIG_DIR = process.env.GEEK_GEEK_RUN_CONFIG || path.join(os.homedir(), '.geekgeekrun', 'config')
+const CONFIG_DIR = process.env.JOB_AGENT_CONFIG_DIR || path.join(os.homedir(), '.job-agent', 'config')
 
 export const PLATFORMS = ['boss', 'zhilian', 'job51', 'liepin']
 export const PLATFORM_NAMES = {

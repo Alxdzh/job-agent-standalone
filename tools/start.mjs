@@ -40,9 +40,9 @@ async function waitForWorkbench() {
 async function startUnix() {
   const env = {
     ...process.env,
-    GEEK_RUN_ROOT: DAEMON,
-    GEEK_GEEK_RUN_CONFIG: path.join(os.homedir(), '.geekgeekrun', 'config'),
-    GEEK_GEEK_RUN_STORAGE: path.join(os.homedir(), '.geekgeekrun', 'storage'),
+    JOB_AGENT_DEPENDENCY_ROOT: DAEMON,
+    JOB_AGENT_CONFIG_DIR: path.join(os.homedir(), '.job-agent', 'config'),
+    JOB_AGENT_STORAGE_DIR: path.join(os.homedir(), '.job-agent', 'storage'),
     BOSS_DAEMON_STATE: path.join(DAEMON, 'state')
   }
   const child = spawn(process.execPath, [path.join(DAEMON, 'index.mjs')], {
