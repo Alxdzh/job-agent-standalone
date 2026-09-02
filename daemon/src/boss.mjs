@@ -582,9 +582,17 @@ export async function autoHunt({ maxJobs = 10, keywords = [], cityName = '', pla
   const config = platformConfig || (await import('./llm.mjs')).readConfig('boss.json') || {}
   const allKeywords = keywords.length
     ? keywords
-    : ((config.jobSourceList || []).flatMap(s => s.children || []).filter(c => c.type === 'search-kw' && c.enabled).map(c => c.keyword) || ['单证员'])
+    : (config.jobSourceList || []).flatMap(s => s.children || [])
+      .filter(c => c.type === 'search-kw' && c.enabled !== false)
+      .map(c => String(c.keyword || '').trim())
+      .filter(Boolean)
   const pacing = readWorkbenchSettings().pacing
   const report = { platform: 'boss', applied: 0, skipped: 0, indeterminate: [], jobs: [], errors: [] }
+  if (!allKeywords.length) {
+    report.reason = 'no keywords'
+    console.log('[boss] 未配置搜索关键词，停止本轮，不使用隐藏默认岗位')
+    return report
+  }
   let opCount = 0
   let nextRestAfter = randInt(pacing.batchCountMin, pacing.batchCountMax)
 

@@ -9,6 +9,8 @@ import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js'
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const daemonDir = path.resolve(__dirname, '..')
 const scratch = fs.mkdtempSync(path.join(os.tmpdir(), 'job-agent-mcp-smoke-'))
+const bossSource = fs.readFileSync(path.join(daemonDir, 'src', 'boss.mjs'), 'utf8')
+assert.doesNotMatch(bossSource, /单证员/)
 const configDir = path.join(scratch, 'config')
 const stateDir = path.join(scratch, 'state')
 const logDir = path.join(scratch, 'log')
